@@ -1,0 +1,27 @@
+{
+  "nav": {
+    "home": "Home",
+    "aboutUs": "About Us",
+    "company": "Company",
+    "ourTeam": "Our Team",
+    "history": "History",
+    "industries": "Industries",
+    "healthcare": "Healthcare",
+    "education": "Education",
+    "military": "Military",
+    "hospitality": "Hospitality",
+    "blog": "Blog",
+    "tryBuy": "Try/Buy"
+  },
+  "sidebar": {
+    "dashboard": "Dashboard",
+    "ingredients": "Ingredients",
+    "recipes": "Recipes",
+    "menus": "Menus",
+    "planning": "Planning",
+    "requisitions": "Requisitions",
+    "inventory": "Inventory",
+    "production": "Production",
+    "reports": "Reports"
+  }
+}
