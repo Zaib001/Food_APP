@@ -1,6 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { FaChevronDown } from 'react-icons/fa';
+import { Link } from 'react-router-dom';
 // import logo from '../assets/logo.png';
 
 export default function Header() {
@@ -67,6 +68,9 @@ console.log(t)
             </li>
             <li>
               <a href="#try" className="hover:text-red-600">{t('nav.tryBuy')}</a>
+            </li>
+            <li>
+              <Link to="/dashboard" className="hover:text-red-600">{t('Dashboard')}</Link>
             </li>
           </ul>
         </nav>
