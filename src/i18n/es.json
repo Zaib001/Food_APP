@@ -1,0 +1,27 @@
+{
+  "nav": {
+    "home": "Inicio",
+    "aboutUs": "Sobre Nosotros",
+    "company": "Compañía",
+    "ourTeam": "Nuestro Equipo",
+    "history": "Historia",
+    "industries": "Industrias",
+    "healthcare": "Salud",
+    "education": "Educación",
+    "military": "Militar",
+    "hospitality": "Hospitalidad",
+    "blog": "Blog",
+    "tryBuy": "Probar/Comprar"
+  },
+  "sidebar": {
+    "dashboard": "Panel",
+    "ingredients": "Ingredientes",
+    "recipes": "Recetas",
+    "menus": "Menús",
+    "planning": "Planificación",
+    "requisitions": "Requisiciones",
+    "inventory": "Inventario",
+    "production": "Producción",
+    "reports": "Informes"
+  }
+}
