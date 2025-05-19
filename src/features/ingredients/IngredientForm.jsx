@@ -1,13 +1,26 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 
+const unitConversions = {
+  kg: 1,
+  g: 0.001,
+  lb: 0.453592,
+  oz: 0.0283495,
+  lt: 1,
+  ml: 0.001,
+  jug: 1.89, 
+  pcs: 1
+};
+
 export default function IngredientForm({ onSubmit }) {
   const [form, setForm] = useState({
     name: '',
     unit: 'kg',
-    price: '',
+    originalPrice: '',
     kcal: '',
-    yield: ''
+    yield: '',
+    category: '',
+    warehouse: ''
   });
 
   const handleChange = (e) => {
@@ -16,8 +29,32 @@ export default function IngredientForm({ onSubmit }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    onSubmit(form);
-    setForm({ name: '', unit: 'kg', price: '', kcal: '', yield: '' });
+
+    const conversionFactor = unitConversions[form.unit] || 1;
+    const pricePerKg = parseFloat(form.originalPrice || 0) / conversionFactor;
+
+    const finalData = {
+      name: form.name,
+      originalUnit: form.unit,
+      pricePerKg: pricePerKg.toFixed(4),
+      originalPrice: parseFloat(form.originalPrice || 0).toFixed(2),
+      kcal: form.kcal,
+      yield: form.yield,
+      category: form.category,
+      warehouse: form.warehouse
+    };
+
+    onSubmit(finalData);
+
+    setForm({
+      name: '',
+      unit: 'kg',
+      originalPrice: '',
+      kcal: '',
+      yield: '',
+      category: '',
+      warehouse: ''
+    });
   };
 
   return (
@@ -38,33 +75,40 @@ export default function IngredientForm({ onSubmit }) {
             value={form.name}
             onChange={handleChange}
             placeholder="e.g. Potato"
-            className="w-full border border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-red-400 transition"
+            className="w-full border border-gray-300 rounded-md px-4 py-2"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Unit</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Purchase Unit</label>
           <select
             name="unit"
             value={form.unit}
             onChange={handleChange}
-            className="w-full border border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-red-400 transition"
+            className="w-full border border-gray-300 rounded-md px-4 py-2"
           >
             <option value="kg">kg</option>
+            <option value="g">g</option>
+            <option value="lb">lb</option>
+            <option value="oz">oz</option>
             <option value="lt">lt</option>
+            <option value="ml">ml</option>
             <option value="jug">jug</option>
+            <option value="pcs">pcs</option>
           </select>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Price (per unit)</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Price (per unit)
+          </label>
           <input
-            name="price"
-            value={form.price}
+            name="originalPrice"
+            value={form.originalPrice}
             onChange={handleChange}
-            placeholder="e.g. 2.50"
             type="number"
-            className="w-full border border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-red-400 transition"
+            placeholder="e.g. 2.5"
+            className="w-full border border-gray-300 rounded-md px-4 py-2"
           />
         </div>
 
@@ -74,21 +118,50 @@ export default function IngredientForm({ onSubmit }) {
             name="kcal"
             value={form.kcal}
             onChange={handleChange}
-            placeholder="e.g. 770"
             type="number"
-            className="w-full border border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-red-400 transition"
+            placeholder="e.g. 770"
+            className="w-full border border-gray-300 rounded-md px-4 py-2"
           />
         </div>
 
-        <div className="md:col-span-2">
+        <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Yield (%)</label>
           <input
             name="yield"
             value={form.yield}
             onChange={handleChange}
-            placeholder="e.g. 80"
             type="number"
-            className="w-full border border-gray-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-red-400 transition"
+            placeholder="e.g. 80"
+            className="w-full border border-gray-300 rounded-md px-4 py-2"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+          <select
+            name="category"
+            value={form.category}
+            onChange={handleChange}
+            className="w-full border border-gray-300 rounded-md px-4 py-2"
+          >
+            <option value="">Select category</option>
+            <option value="protein">Protein</option>
+            <option value="side">Side</option>
+            <option value="bread">Bread</option>
+            <option value="beverage">Beverage</option>
+            <option value="cold">Cold Dish</option>
+            <option value="hot">Hot Dish</option>
+          </select>
+        </div>
+
+        <div className="md:col-span-2">
+          <label className="block text-sm font-medium text-gray-700 mb-1">Warehouse</label>
+          <input
+            name="warehouse"
+            value={form.warehouse}
+            onChange={handleChange}
+            placeholder="e.g. Freezer 1, Dry Store"
+            className="w-full border border-gray-300 rounded-md px-4 py-2"
           />
         </div>
       </div>
@@ -96,7 +169,7 @@ export default function IngredientForm({ onSubmit }) {
       <div className="mt-6 text-right">
         <button
           type="submit"
-          className="bg-red-600 text-white font-semibold px-6 py-2 rounded-md hover:bg-red-700 transition shadow-sm"
+          className="bg-red-600 text-white px-6 py-2 rounded hover:bg-red-700"
         >
           Add Ingredient
         </button>

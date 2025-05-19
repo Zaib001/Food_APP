@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Select from 'react-select';
 
-export default function ProductionForm({ recipes, bases, onSubmit }) {
+export default function ProductionForm({ recipes, bases, onSubmit, initialValues = null }) {
   const [form, setForm] = useState({
     recipeId: '',
     quantity: '',
@@ -9,6 +9,10 @@ export default function ProductionForm({ recipes, bases, onSubmit }) {
     base: '',
     handler: '',
   });
+
+  useEffect(() => {
+    if (initialValues) setForm(initialValues);
+  }, [initialValues]);
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -20,6 +24,10 @@ export default function ProductionForm({ recipes, bases, onSubmit }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (!form.recipeId || !form.date || !form.quantity || !form.base || !form.handler) {
+      alert('Please fill all fields.');
+      return;
+    }
     onSubmit(form);
     setForm({
       recipeId: '',
@@ -47,6 +55,7 @@ export default function ProductionForm({ recipes, bases, onSubmit }) {
             value={recipeOptions.find(o => o.value === form.recipeId)}
             onChange={handleSelectChange}
             placeholder="Select Recipe"
+            required
           />
         </div>
 
@@ -105,12 +114,14 @@ export default function ProductionForm({ recipes, bases, onSubmit }) {
         </div>
       </div>
 
-      <button
-        type="submit"
-        className="bg-red-600 text-white px-6 py-2 rounded hover:bg-red-700"
-      >
-        Save Production Log
-      </button>
+      <div className="text-right">
+        <button
+          type="submit"
+          className="bg-red-600 text-white px-6 py-2 rounded hover:bg-red-700"
+        >
+          Save Production Log
+        </button>
+      </div>
     </form>
   );
 }

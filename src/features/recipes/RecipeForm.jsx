@@ -2,65 +2,121 @@ import React, { useState } from 'react';
 import { FaPlus, FaUtensils } from 'react-icons/fa';
 
 export default function RecipeForm({ ingredientsList, onSubmit }) {
-  const [recipeName, setRecipeName] = useState('');
-  const [items, setItems] = useState([]);
+  const [recipe, setRecipe] = useState({
+    name: '',
+    portions: '',
+    yieldWeight: '',
+    type: '',
+    category: '',
+    ingredients: [],
+  });
+
+  const handleChange = (e) => {
+    setRecipe({ ...recipe, [e.target.name]: e.target.value });
+  };
 
   const handleIngredientChange = (index, field, value) => {
-    const updated = [...items];
+    const updated = [...recipe.ingredients];
     updated[index][field] = value;
-    setItems(updated);
+    setRecipe({ ...recipe, ingredients: updated });
   };
 
   const addIngredient = () => {
-    setItems([...items, { ingredientId: '', quantity: '' }]);
+    setRecipe((prev) => ({
+      ...prev,
+      ingredients: [...prev.ingredients, { ingredientId: '', quantity: '' }],
+    }));
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    onSubmit({ name: recipeName, ingredients: items });
-    setRecipeName('');
-    setItems([]);
+
+    if (!recipe.name || !recipe.portions || !recipe.yieldWeight || recipe.ingredients.length === 0) {
+      alert('Please fill in all required fields and add at least one ingredient.');
+      return;
+    }
+
+    onSubmit(recipe);
+    setRecipe({
+      name: '',
+      portions: '',
+      yieldWeight: '',
+      type: '',
+      category: '',
+      ingredients: [],
+    });
   };
 
-  const totalCost = items.reduce((sum, item) => {
+  const totalCost = recipe.ingredients.reduce((sum, item) => {
     const ing = ingredientsList.find(i => i.id === item.ingredientId);
     if (!ing) return sum;
     const adjustedQty = item.quantity / (ing.yield / 100);
     return sum + adjustedQty * ing.price;
   }, 0);
 
-  const totalKcal = items.reduce((sum, item) => {
+  const totalKcal = recipe.ingredients.reduce((sum, item) => {
     const ing = ingredientsList.find(i => i.id === item.ingredientId);
     if (!ing) return sum;
     return sum + (item.quantity * ing.kcal) / 1000;
   }, 0);
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="bg-white shadow-lg rounded-xl p-6 border border-gray-100 mb-8"
-    >
+    <form onSubmit={handleSubmit} className="bg-white shadow-lg rounded-xl p-6 border border-gray-100 mb-8">
       <div className="flex items-center gap-2 mb-6 text-red-600">
         <FaUtensils className="text-xl" />
         <h2 className="text-xl font-bold text-gray-800">Create New Recipe</h2>
       </div>
 
-      <input
-        type="text"
-        value={recipeName}
-        onChange={(e) => setRecipeName(e.target.value)}
-        placeholder="Recipe Name"
-        className="w-full mb-5 px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-400 focus:outline-none"
-      />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
+        <input
+          name="name"
+          value={recipe.name}
+          onChange={handleChange}
+          placeholder="Recipe Name"
+          className="px-4 py-2 border border-gray-300 rounded-md w-full"
+          required
+        />
+        <input
+          name="portions"
+          value={recipe.portions}
+          onChange={handleChange}
+          type="number"
+          placeholder="Portions"
+          className="px-4 py-2 border border-gray-300 rounded-md w-full"
+          required
+        />
+        <input
+          name="yieldWeight"
+          value={recipe.yieldWeight}
+          onChange={handleChange}
+          type="number"
+          placeholder="Yield Weight (kg)"
+          className="px-4 py-2 border border-gray-300 rounded-md w-full"
+          required
+        />
+        <input
+          name="type"
+          value={recipe.type}
+          onChange={handleChange}
+          placeholder="Recipe Type (e.g., Soup)"
+          className="px-4 py-2 border border-gray-300 rounded-md w-full"
+        />
+        <input
+          name="category"
+          value={recipe.category}
+          onChange={handleChange}
+          placeholder="Category (e.g., Cold Kitchen)"
+          className="px-4 py-2 border border-gray-300 rounded-md w-full"
+        />
+      </div>
 
-      {items.map((item, index) => (
+      {recipe.ingredients.map((item, index) => (
         <div key={index} className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-4">
           <select
             value={item.ingredientId}
-            onChange={(e) =>
-              handleIngredientChange(index, 'ingredientId', e.target.value)
-            }
-            className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-300 focus:outline-none"
+            onChange={(e) => handleIngredientChange(index, 'ingredientId', e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded-md"
+            required
           >
             <option value="">Select Ingredient</option>
             {ingredientsList.map((ing) => (
@@ -69,15 +125,13 @@ export default function RecipeForm({ ingredientsList, onSubmit }) {
               </option>
             ))}
           </select>
-
           <input
             type="number"
             value={item.quantity}
-            onChange={(e) =>
-              handleIngredientChange(index, 'quantity', e.target.value)
-            }
+            onChange={(e) => handleIngredientChange(index, 'quantity', e.target.value)}
             placeholder="Quantity"
-            className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-300 focus:outline-none"
+            className="px-3 py-2 border border-gray-300 rounded-md"
+            required
           />
         </div>
       ))}
@@ -85,21 +139,24 @@ export default function RecipeForm({ ingredientsList, onSubmit }) {
       <button
         type="button"
         onClick={addIngredient}
-        className="flex items-center gap-2 text-sm text-red-600 hover:text-red-800 transition mb-5"
+        className="flex items-center gap-2 text-sm text-red-600 hover:text-red-800 mb-5"
       >
         <FaPlus /> Add Ingredient
       </button>
 
       <div className="mb-4 text-sm text-gray-700">
         <p>Total KCAL: <strong>{totalKcal.toFixed(2)}</strong></p>
-        <p>Total Estimated Cost: <strong>${totalCost.toFixed(2)}</strong></p>
+        <p>Total Cost: <strong>${totalCost.toFixed(2)}</strong></p>
+        {recipe.portions && (
+          <>
+            <p>KCAL / Portion: <strong>{(totalKcal / recipe.portions).toFixed(2)}</strong></p>
+            <p>Cost / Portion: <strong>${(totalCost / recipe.portions).toFixed(2)}</strong></p>
+          </>
+        )}
       </div>
 
       <div className="text-right">
-        <button
-          type="submit"
-          className="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-md font-semibold transition"
-        >
+        <button type="submit" className="bg-red-600 text-white px-6 py-2 rounded hover:bg-red-700">
           Save Recipe
         </button>
       </div>

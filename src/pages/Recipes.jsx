@@ -4,6 +4,9 @@ import RecipeCard from '../features/recipes/RecipeCard';
 import EditModal from '../components/EditModal';
 import { exportRecipesToCSV, exportRecipesToPDF } from '../components/exportRecipesToPDF';
 import { FaFileCsv, FaFilePdf } from 'react-icons/fa';
+import { useRecipes } from '../contexts/RecipeContext';
+
+
 const sampleIngredients = [
     { id: '1', name: 'Potato', unit: 'kg', price: 2.5, kcal: 770, yield: 80 },
     { id: '2', name: 'Carrot', unit: 'kg', price: 1.8, kcal: 410, yield: 90 },
@@ -13,7 +16,8 @@ const sampleIngredients = [
 ];
 
 export default function Recipes() {
-    const [recipes, setRecipes] = useState([]);
+    const { recipes, addRecipe } = useRecipes();
+    // const [recipes, setRecipes] = useState([]);
     const [editIndex, setEditIndex] = useState(null);
     const [editModalOpen, setEditModalOpen] = useState(false);
 
@@ -21,10 +25,12 @@ export default function Recipes() {
         sampleIngredients.map((i) => [i.id, i])
     );
 
+    // const handleAddRecipe = (newRecipe) => {
+    //     setRecipes((prev) => [...prev, newRecipe]);
+    // };
     const handleAddRecipe = (newRecipe) => {
-        setRecipes((prev) => [...prev, newRecipe]);
+        addRecipe(newRecipe); 
     };
-
     const handleUpdateRecipeName = (updated) => {
         const updatedList = [...recipes];
         updatedList[editIndex].name = updated.name;

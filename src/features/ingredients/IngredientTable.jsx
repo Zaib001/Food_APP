@@ -16,38 +16,42 @@ export default function IngredientTable({ ingredients, onEdit, onDelete }) {
         <table className="w-full text-sm text-left border border-gray-200">
           <thead className="bg-gray-100 text-gray-700 font-semibold">
             <tr>
-              <th className="p-3 border-b border-gray-200">Name</th>
-              <th className="p-3 border-b border-gray-200">Unit</th>
-              <th className="p-3 border-b border-gray-200">Price</th>
-              <th className="p-3 border-b border-gray-200">KCAL</th>
-              <th className="p-3 border-b border-gray-200">Yield (%)</th>
-              <th className="p-3 border-b border-gray-200 text-center">Actions</th>
+              <th className="p-3 border-b">Name</th>
+              <th className="p-3 border-b">Unit</th>
+              <th className="p-3 border-b">Price</th>
+              <th className="p-3 border-b">KCAL</th>
+              <th className="p-3 border-b">Yield</th>
+              <th className="p-3 border-b">Category</th>
+              <th className="p-3 border-b">Warehouse</th>
+              <th className="p-3 border-b text-center">Actions</th>
             </tr>
           </thead>
           <tbody>
             {ingredients.map((ing, index) => (
               <tr
                 key={index}
-                className={`transition-all duration-200 ${
-                  index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
-                } hover:bg-red-50`}
+                className={`transition duration-200 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
+                  } hover:bg-red-50`}
               >
-                <td className="p-3 border-b border-gray-200">{ing.name}</td>
-                <td className="p-3 border-b border-gray-200">{ing.unit}</td>
-                <td className="p-3 border-b border-gray-200">${ing.price}</td>
-                <td className="p-3 border-b border-gray-200">{ing.kcal}</td>
-                <td className="p-3 border-b border-gray-200">{ing.yield}%</td>
-                <td className="p-3 border-b border-gray-200 text-center">
+                <td className="p-3 border-b">{ing.name}</td>
+                <td className="p-3 border-b">{ing.originalUnit}</td>
+                <td className="p-3 border-b">${parseFloat(ing.pricePerKg).toFixed(2)}</td>
+
+                <td className="p-3 border-b">{ing.kcal}</td>
+                <td className="p-3 border-b">{ing.yield}%</td>
+                <td className="p-3 border-b capitalize">{ing.category || '-'}</td>
+                <td className="p-3 border-b">{ing.warehouse || '-'}</td>
+                <td className="p-3 border-b text-center">
                   <button
                     onClick={() => onEdit(index)}
-                    className="text-blue-600 hover:text-blue-800 mr-3 transition"
+                    className="text-blue-600 hover:text-blue-800 mr-3"
                     title="Edit"
                   >
                     <FaEdit />
                   </button>
                   <button
                     onClick={() => onDelete(index)}
-                    className="text-red-600 hover:text-red-800 transition"
+                    className="text-red-600 hover:text-red-800"
                     title="Delete"
                   >
                     <FaTrash />

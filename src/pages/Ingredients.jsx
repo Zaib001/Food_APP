@@ -2,9 +2,16 @@ import React, { useState } from 'react';
 import IngredientTable from '../features/ingredients/IngredientTable';
 import EditModal from '../components/EditModal';
 import IngredientForm from '../features/ingredients/IngredientForm';
+import { useIngredients } from '../contexts/IngredientContext';
 
 export default function Ingredients() {
-  const [ingredients, setIngredients] = useState([]);
+  const {
+    ingredients,
+    addIngredient,
+    updateIngredient,
+    deleteIngredient,
+  } = useIngredients();
+
   const [editingIndex, setEditingIndex] = useState(null);
   const [isModalOpen, setModalOpen] = useState(false);
 
@@ -14,24 +21,18 @@ export default function Ingredients() {
   };
 
   const handleSave = (updatedData) => {
-    const updated = [...ingredients];
-    updated[editingIndex] = updatedData;
-    setIngredients(updated);
+    updateIngredient(editingIndex, updatedData);
+    setModalOpen(false);
   };
-  const addIngredient = (ingredient) => {
-    setIngredients([...ingredients, ingredient]);
-  };
+
   return (
     <div>
-        <IngredientForm onSubmit={addIngredient} />
-        <IngredientTable
+      <IngredientForm onSubmit={addIngredient} />
+
+      <IngredientTable
         ingredients={ingredients}
         onEdit={handleEdit}
-        onDelete={(index) => {
-          const updated = [...ingredients];
-          updated.splice(index, 1);
-          setIngredients(updated);
-        }}
+        onDelete={deleteIngredient}
       />
 
       <EditModal
@@ -42,10 +43,12 @@ export default function Ingredients() {
         onSave={handleSave}
         fields={[
           { name: 'name', label: 'Name' },
-          { name: 'unit', label: 'Unit' },
-          { name: 'price', label: 'Price', type: 'number' },
+          { name: 'originalUnit', label: 'Unit' },
+          { name: 'originalPrice', label: 'Price', type: 'number' },
           { name: 'kcal', label: 'KCAL', type: 'number' },
           { name: 'yield', label: 'Yield (%)', type: 'number' },
+          { name: 'category', label: 'Category' },
+          { name: 'warehouse', label: 'Warehouse' },
         ]}
       />
     </div>
