@@ -8,7 +8,7 @@ export default function Header() {
   const { t, i18n } = useTranslation();
 
   const changeLanguage = (lang) => i18n.changeLanguage(lang);
-console.log(t)
+  console.log(t)
   return (
     <header className="bg-white shadow-md sticky top-0 z-50 border-b">
       {/* Language Switcher */}
@@ -70,8 +70,9 @@ console.log(t)
               <a href="#try" className="hover:text-red-600">{t('nav.tryBuy')}</a>
             </li>
             <li>
-              <Link to="/dashboard" className="hover:text-red-600">{t('Dashboard')}</Link>
+              <Link to="/signup" className="hover:text-red-600">{t('nav.signup') || 'Sign Up'}</Link>
             </li>
+
           </ul>
         </nav>
       </div>

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Select from 'react-select';
 import { motion } from 'framer-motion';
 
-export default function InventoryForm({ ingredients = [], suppliers = [], initialData = {}, onSave }) {
+export default function InventoryForm({ ingredients = [], initialData = {}, onSave }) {
   const [form, setForm] = useState({
     ingredientId: '',
     supplier: '',
@@ -52,23 +52,32 @@ export default function InventoryForm({ ingredients = [], suppliers = [], initia
         <div>
           <label className="block text-sm text-gray-700 mb-1">Ingredient</label>
           <Select
-            options={ingredients.map((i) => ({ value: i.id, label: i.name }))}
-            value={ingredients.find((i) => i.id === form.ingredientId) ? { value: form.ingredientId, label: ingredients.find((i) => i.id === form.ingredientId)?.name } : null}
+            options={ingredients.map((i) => ({ value: i._id, label: i.name }))}
+            value={ingredients.find((i) => i._id === form.ingredientId) ? {
+              value: form.ingredientId,
+              label: ingredients.find((i) => i._id === form.ingredientId)?.name,
+            } : null}
             onChange={(selected) => handleSelect('ingredientId', selected)}
             placeholder="Select ingredient"
+            required
           />
+
         </div>
 
         {/* Supplier */}
+        {/* Supplier (manual input) */}
         <div>
           <label className="block text-sm text-gray-700 mb-1">Supplier</label>
-          <Select
-            options={suppliers.map((s) => ({ value: s, label: s }))}
-            value={form.supplier ? { value: form.supplier, label: form.supplier } : null}
-            onChange={(selected) => handleSelect('supplier', selected)}
-            placeholder="Select supplier"
+          <input
+            type="text"
+            name="supplier"
+            value={form.supplier}
+            onChange={handleChange}
+            placeholder="Enter supplier name"
+            className="border rounded px-3 py-2 w-full"
           />
         </div>
+
 
         {/* Quantity */}
         <div>

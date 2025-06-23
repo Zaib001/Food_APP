@@ -2,52 +2,56 @@ import React, { useState } from 'react';
 import InventoryForm from '../features/inventory/InventoryForm';
 import InventoryTable from '../features/inventory/InventoryTable';
 import StockBarChart from '../components/StockBarChart';
-import { exportInventoryToCSV } from '../utils/exportMenus';
-
-import { FaFileCsv, FaBoxOpen } from 'react-icons/fa';
+import { FaFileCsv } from 'react-icons/fa';
+import { useInventory } from '../contexts/InventoryContext';
+import { useIngredients } from '../contexts/IngredientContext';
 
 export default function Inventory() {
-  const [inventory, setInventory] = useState([]);
+  const {
+    inventory,
+    addInventory,
+    editInventory,
+    removeInventory,
+    downloadCSV,
+  } = useInventory();
+
+  const { ingredients } = useIngredients();
+
   const [editIndex, setEditIndex] = useState(null);
 
-  const ingredients = [
-    { id: '1', name: 'Potato', unit: 'kg' },
-    { id: '2', name: 'Carrot', unit: 'kg' },
-    { id: '3', name: 'Chicken', unit: 'kg' },
-  ];
 
-  const suppliers = ['Supplier A', 'Supplier B', 'Supplier C'];
+  const handleSave = async (item) => {
+    console.log(item)
+    const ingredientName = ingredients.find(i => i._id === item.ingredientId)?.name || item.ingredientId;
+    const ingredient = ingredients.find(i => i._id === item.ingredientId);
+    if (!ingredient) return;
 
-  const handleSave = (item) => {
-    const fullItem = {
+    const entry = {
       ...item,
-      ingredientName: ingredients.find(i => i.id === item.ingredientId)?.name || item.ingredientId,
+      ingredientId: ingredient._id,
+      ingredientName: ingredient.name,
     };
-
     if (editIndex !== null) {
-      const updated = [...inventory];
-      updated[editIndex] = fullItem;
-      setInventory(updated);
+      await editInventory(inventory[editIndex]._id, entry);
       setEditIndex(null);
     } else {
-      setInventory(prev => [...prev, fullItem]);
+      console.log('Submitting inventory entry:', entry);
+      await addInventory(entry);
+
     }
   };
 
   const handleEdit = (index) => setEditIndex(index);
-  const handleDelete = (index) => {
-    const copy = [...inventory];
-    copy.splice(index, 1);
-    setInventory(copy);
+  const handleDelete = async (index) => {
+    const id = inventory[index]._id;
+    await removeInventory(id);
   };
 
   return (
     <div className="p-6">
-     
-
       <div className="flex justify-end mb-4">
         <button
-          onClick={() => exportInventoryToCSV(inventory)}
+          onClick={downloadCSV}
           className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 text-sm"
         >
           <FaFileCsv /> Export CSV
@@ -56,7 +60,6 @@ export default function Inventory() {
 
       <InventoryForm
         ingredients={ingredients}
-        suppliers={suppliers}
         onSave={handleSave}
         initialData={editIndex !== null ? inventory[editIndex] : {}}
       />

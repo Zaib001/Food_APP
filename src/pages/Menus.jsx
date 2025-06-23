@@ -3,29 +3,34 @@ import MenuPlanner from '../features/menus/MenuPlanner';
 import MenuCalendar from '../features/menus/MenuCalendar';
 import GeneratedRequisitionTable from '../features/requisitions/GeneratedRequisitionTable';
 import { exportMenusToCSV, exportMenusToWeeklyPDF } from '../utils/exportMenus';
-import { useRequisitions } from '../contexts/RequisitionContext';
 import { FaFileCsv, FaFilePdf, FaReceipt } from 'react-icons/fa';
 
-const ingredients = [
-  { id: '1', name: 'Chicken', category: 'protein', unit: 'kg' },
-  { id: '2', name: 'Potato', category: 'side', unit: 'kg' },
-  { id: '3', name: 'Salad', category: 'side', unit: 'kg' },
-  { id: '4', name: 'Bun', category: 'bread', unit: 'pcs' },
-  { id: '5', name: 'Tea', category: 'beverage', unit: 'ltr' },
-  { id: '6', name: 'Fish', category: 'protein', unit: 'kg' },
-  { id: '7', name: 'Rice', category: 'side', unit: 'kg' },
-  { id: '8', name: 'Coffee', category: 'beverage', unit: 'ltr' },
-];
+import { useMenus } from '../contexts/MenuContext';
+import { useIngredients } from '../contexts/IngredientContext';
+import { useRecipes } from '../contexts/RecipeContext';
 
 export default function Menus() {
-  const [menus, setMenus] = useState([]);
-  const [selectedWeek, setSelectedWeek] = useState('all');
-  const { requisitions, setRequisitions } = useRequisitions();
+  const { menus, addMenu, generateRequisitionsFromServer, generatedRequisitions } = useMenus();
+  const { ingredients } = useIngredients();
+  const { recipes } = useRecipes();
 
-  const ingredientsMap = Object.fromEntries(ingredients.map(i => [i.id, i]));
+  const [requisitions, setRequisitions] = useState([]);
+  const [selectedWeek, setSelectedWeek] = useState('all');
+
+  const [loading, setLoading] = useState(false);
+
+  const handleGenerate = async () => {
+    setLoading(true);
+    await generateRequisitionsFromServer(100);
+    setLoading(false);
+  };
+  const ingredientsMap = {};
+  ingredients.forEach(i => {
+    ingredientsMap[i._id] = i;
+  });
 
   const handleSubmit = (newMenu) => {
-    setMenus(prev => [...prev, newMenu]);
+    addMenu(newMenu);
   };
 
   const currentWeekDates = () => {
@@ -43,81 +48,54 @@ export default function Menus() {
     ? menus
     : menus.filter(menu => weekDates.includes(menu.date));
 
-  const generateRequisitionsFromMenus = () => {
-    const newRequisitions = [];
-
-    filteredMenus.forEach(menu => {
-      const allItems = [menu.protein, ...menu.sides, menu.bread, menu.beverage];
-      allItems.forEach(id => {
-        const ing = ingredientsMap[id];
-        if (ing) {
-          newRequisitions.push({
-            date: menu.date,
-            item: ing.name,
-            unit: ing.unit,
-            base: menu.base,
-            status: 'pending',
-            quantity: 1,
-            supplier: 'Default Supplier',
-            requestedBy: 'System',
-          });
-        }
-      });
-    });
-
-    setRequisitions(newRequisitions);
-    alert('Requisitions generated from menus!');
-    console.log('Requisitions:', newRequisitions);
-  };
 
   return (
     <div className="p-6">
-
-    <div className="flex flex-wrap justify-end gap-3 mb-6">
-  <button
-    onClick={() => exportMenusToCSV(filteredMenus, ingredientsMap)}
-    className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 text-sm"
-  >
-    <FaFileCsv /> Export CSV
-  </button>
-  <button
-    onClick={() => exportMenusToWeeklyPDF(filteredMenus, ingredientsMap)}
-    className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 text-sm"
-  >
-    <FaFilePdf /> Export Weekly PDF
-  </button>
-  <button
-    onClick={generateRequisitionsFromMenus}
-    className="flex items-center gap-2 bg-yellow-600 text-white px-4 py-2 rounded hover:bg-yellow-700 text-sm"
-  >
-    <FaReceipt /> Generate Requisitions
-  </button>
-</div>
+      {/* Export Buttons */}
+      <div className="flex flex-wrap justify-end gap-3 mb-6">
+        <button
+          onClick={() => exportMenusToCSV(filteredMenus, ingredientsMap)}
+          className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 text-sm"
+        >
+          <FaFileCsv /> Export CSV
+        </button>
+        <button
+          onClick={() => exportMenusToWeeklyPDF(filteredMenus, ingredientsMap)}
+          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 text-sm"
+        >
+          <FaFilePdf /> Export Weekly PDF
+        </button>
+        <button
+          onClick={handleGenerate}
+          disabled={loading}
+          className={`flex items-center gap-2 px-4 py-2 rounded text-sm ${loading ? 'bg-gray-400' : 'bg-yellow-600 hover:bg-yellow-700'
+            } text-white`}
+        >
+          <FaReceipt />
+          {loading ? 'Generating...' : 'Generate Requisitions'}
+        </button>
+      </div>
 
       {/* Week Filter */}
       <div className="mb-6 flex gap-2">
         <button
           onClick={() => setSelectedWeek('all')}
-          className={`px-3 py-1 rounded ${
-            selectedWeek === 'all' ? 'bg-red-600 text-white' : 'bg-gray-100 hover:bg-gray-200'
-          }`}
+          className={`px-3 py-1 rounded ${selectedWeek === 'all' ? 'bg-red-600 text-white' : 'bg-gray-100 hover:bg-gray-200'}`}
         >
           All Menus
         </button>
         <button
           onClick={() => setSelectedWeek('week')}
-          className={`px-3 py-1 rounded ${
-            selectedWeek === 'week' ? 'bg-red-600 text-white' : 'bg-gray-100 hover:bg-gray-200'
-          }`}
+          className={`px-3 py-1 rounded ${selectedWeek === 'week' ? 'bg-red-600 text-white' : 'bg-gray-100 hover:bg-gray-200'}`}
         >
           This Week
         </button>
       </div>
 
-      {/* Form + Calendar + Requisition Table */}
+      {/* UI Sections */}
       <MenuPlanner ingredients={ingredients} onSubmit={handleSubmit} />
       <MenuCalendar menus={filteredMenus} ingredientsMap={ingredientsMap} />
-      <GeneratedRequisitionTable requisitions={requisitions} />
+      <GeneratedRequisitionTable requisitions={generatedRequisitions} />
     </div>
   );
 }

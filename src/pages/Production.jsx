@@ -1,67 +1,109 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import ProductionForm from '../features/production/ProductionForm';
 import ProductionTable from '../features/production/ProductionTable';
-import { FaFileCsv } from 'react-icons/fa';
-// import { exportProductionToCSV } from '../utils/exportProduction'; // optional
+import { FaFilePdf } from 'react-icons/fa';
+import { exportProductionToPDF } from '../components/exportRecipesToPDF';
+import { useIngredients } from '../contexts/IngredientContext';
+import { useRecipes } from '../contexts/RecipeContext';
+import { useProductions } from '../contexts/ProductionContext';
 
-export default function Production() {
-  const [logs, setLogs] = useState([]);
+export default function Production({ bases = [] }) {
+  const { productions, addProduction, updateOne, deleteOne, fetchProductions } = useProductions();
+  const { deductStock } = useIngredients();
+  const { recipes, getIngredientsForRecipe } = useRecipes();
+
   const [editIndex, setEditIndex] = useState(null);
+  const [filters, setFilters] = useState({ recipe: 'all', base: 'all', date: '' });
 
-  const recipes = [
-    { id: 'r1', name: 'Chicken Soup' },
-    { id: 'r2', name: 'Rice & Beans' },
-    { id: 'r3', name: 'Beef Stew' },
-  ];
+  const recipesMap = Object.fromEntries(recipes.map(r => [r._id || r.id, r]));
 
-  const bases = ['Camp A', 'Camp B', 'Base Alpha'];
+  const handleSubmit = async (entry) => {
+    const qty = Number(entry.quantity || 0);
+    const ingredientsUsed = getIngredientsForRecipe(entry.recipeId);
 
-  const recipesMap = Object.fromEntries(recipes.map(r => [r.id, r]));
+    if (ingredientsUsed && qty > 0) {
+      ingredientsUsed.forEach(({ ingredientId, qtyPerUnit }) => {
+        const totalQty = qtyPerUnit * qty;
+        deductStock(ingredientId, totalQty);
+      });
+    }
 
-  const handleSubmit = (entry) => {
     if (editIndex !== null) {
-      const updated = [...logs];
-      updated[editIndex] = entry;
-      setLogs(updated);
+      const target = productions[editIndex];
+      await updateOne(target._id, entry);
       setEditIndex(null);
     } else {
-      setLogs(prev => [...prev, entry]);
+      await addProduction(entry);
     }
   };
 
-  const handleEdit = (index) => {
-    setEditIndex(index);
+  const handleEdit = (index) => setEditIndex(index);
+  const handleDelete = async (index) => {
+    const target = productions[index];
+    await deleteOne(target._id);
   };
 
-  const handleDelete = (index) => {
-    const copy = [...logs];
-    copy.splice(index, 1);
-    setLogs(copy);
-  };
+  useEffect(() => {
+    const f = {};
+    if (filters.recipe !== 'all') f.recipe = filters.recipe;
+    if (filters.base !== 'all') f.base = filters.base;
+    if (filters.date) f.date = filters.date;
+    fetchProductions(f);
+  }, [filters]);
+
+  const filteredLogs = productions;
 
   return (
     <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
+      {/* Filters */}
+      <div className="flex flex-wrap justify-between items-center gap-4 mb-4">
+        <div className="flex flex-wrap gap-2">
+          <select
+            value={filters.recipe}
+            onChange={(e) => setFilters({ ...filters, recipe: e.target.value })}
+            className="px-3 py-1 text-sm border border-gray-300 rounded"
+          >
+            <option value="all">All Recipes</option>
+            {recipes.map((r) => (
+              <option key={r._id || r.id} value={r._id || r.id}>{r.name}</option>
+            ))}
+          </select>
 
-        {/* Optional Export Button */}
-        {/* 
+          <select
+            value={filters.base}
+            onChange={(e) => setFilters({ ...filters, base: e.target.value })}
+            className="px-3 py-1 text-sm border border-gray-300 rounded"
+          >
+            <option value="all">All Bases</option>
+            {bases.map((b, i) => (
+              <option key={i} value={b}>{b}</option>
+            ))}
+          </select>
+
+          <input
+            type="date"
+            value={filters.date}
+            onChange={(e) => setFilters({ ...filters, date: e.target.value })}
+            className="px-3 py-1 text-sm border border-gray-300 rounded"
+          />
+        </div>
+
         <button
-          onClick={() => exportProductionToCSV(logs)}
-          className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 text-sm"
+          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700"
+          onClick={() => exportProductionToPDF(filteredLogs, recipesMap)}
         >
-          <FaFileCsv /> Export CSV
+          <FaFilePdf /> Export PDF
         </button>
-        */}
       </div>
 
       <ProductionForm
         recipes={recipes}
-        bases={bases}
         onSubmit={handleSubmit}
+        initialValues={editIndex !== null ? productions[editIndex] : null}
       />
 
       <ProductionTable
-        data={logs}
+        data={filteredLogs}
         recipesMap={recipesMap}
         onEdit={handleEdit}
         onDelete={handleDelete}
@@ -69,3 +111,4 @@ export default function Production() {
     </div>
   );
 }
+

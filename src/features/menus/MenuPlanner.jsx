@@ -1,143 +1,140 @@
 import React, { useState } from 'react';
 import Select from 'react-select';
+import {
+  FaCalendarAlt,
+  FaMapMarkerAlt,
+  FaUtensils,
+  FaSave
+} from 'react-icons/fa';
+import { useRecipes } from '../../contexts/RecipeContext';
 
-export default function MenuPlanner({ ingredients, onSubmit }) {
+export default function MenuPlanner({ onSubmit }) {
+  const { recipes } = useRecipes();
+
   const [menu, setMenu] = useState({
     date: '',
     base: '',
-    mealType: { value: 'dinner', label: 'Dinner' },
-    protein: null,
-    sides: [],
-    bread: null,
-    beverage: null,
+    breakfast: [],
+    lunch: [],
+    dinner: [],
   });
 
-  const handleSelectChange = (field, option) => {
-    setMenu({ ...menu, [field]: option });
-  };
-
-  const handleMultiSelectChange = (selectedOptions) => {
-    setMenu({ ...menu, sides: selectedOptions });
+  const handleChange = (field, value) => {
+    setMenu(prev => ({ ...prev, [field]: value }));
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    onSubmit({
-      ...menu,
-      mealType: menu.mealType?.value,
-      protein: menu.protein?.value || '',
-      sides: menu.sides.map((s) => s.value),
-      bread: menu.bread?.value || '',
-      beverage: menu.beverage?.value || '',
+
+    const entries = [
+      { mealType: 'breakfast', recipes: menu.breakfast },
+      { mealType: 'lunch', recipes: menu.lunch },
+      { mealType: 'dinner', recipes: menu.dinner },
+    ];
+
+    entries.forEach(entry => {
+      if (entry.recipes.length > 0) {
+        const recipeIds = entry.recipes.map(r => r.value);
+        onSubmit({
+          date: menu.date,
+          base: menu.base,
+          mealType: entry.mealType,
+          recipeIds,
+        });
+      }
     });
+
     setMenu({
       date: '',
       base: '',
-      mealType: { value: 'dinner', label: 'Dinner' },
-      protein: null,
-      sides: [],
-      bread: null,
-      beverage: null,
+      breakfast: [],
+      lunch: [],
+      dinner: [],
     });
   };
 
-  const filterByCategory = (cat) =>
-    ingredients
-      .filter((i) => i.category === cat)
-      .map((i) => ({ value: i.id, label: i.name }));
-
-  const mealOptions = ['breakfast', 'lunch', 'snack', 'dinner'].map((m) => ({
-    value: m,
-    label: m.charAt(0).toUpperCase() + m.slice(1),
-  }));
+  const recipeOptions = (mealType) =>
+    recipes
+      .filter(r => r.type?.toLowerCase() === mealType.toLowerCase())
+      .map(r => ({ value: r._id, label: r.name }));
 
   return (
     <form onSubmit={handleSubmit} className="bg-white p-6 rounded-xl shadow mb-6">
-      <h2 className="text-xl font-bold mb-4 text-gray-800">🍽️ Plan a New Menu</h2>
+      <div className="flex items-center gap-2 mb-4 text-gray-800">
+        <FaUtensils className="text-red-600" />
+        <h2 className="text-xl font-bold">Plan New Menu</h2>
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
         <div>
-          <label className="text-sm text-gray-700 block mb-1">Date</label>
+          <label className="text-sm block mb-1 flex items-center gap-1">
+            <FaCalendarAlt /> Date
+          </label>
           <input
             type="date"
-            name="date"
             value={menu.date}
-            onChange={(e) => setMenu({ ...menu, date: e.target.value })}
-            className="border rounded px-3 py-2 w-full"
+            onChange={(e) => handleChange('date', e.target.value)}
+            className="w-full px-3 py-2 border rounded"
             required
           />
         </div>
 
         <div>
-          <label className="text-sm text-gray-700 block mb-1">Base / Location</label>
+          <label className="text-sm block mb-1 flex items-center gap-1">
+            <FaMapMarkerAlt /> Base / Location
+          </label>
           <input
             type="text"
-            name="base"
-            placeholder="e.g. Camp A"
             value={menu.base}
-            onChange={(e) => setMenu({ ...menu, base: e.target.value })}
-            className="border rounded px-3 py-2 w-full"
+            onChange={(e) => handleChange('base', e.target.value)}
+            className="w-full px-3 py-2 border rounded"
+            placeholder="e.g. Camp Alpha"
             required
-          />
-        </div>
-
-        <div>
-          <label className="text-sm text-gray-700 block mb-1">Meal Type</label>
-          <Select
-            options={mealOptions}
-            value={menu.mealType}
-            onChange={(val) => handleSelectChange('mealType', val)}
-          />
-        </div>
-
-        <div>
-          <label className="text-sm text-gray-700 block mb-1">Protein</label>
-          <Select
-            options={filterByCategory('protein')}
-            value={menu.protein}
-            onChange={(val) => handleSelectChange('protein', val)}
-            placeholder="Select Protein"
-          />
-        </div>
-
-        <div>
-          <label className="text-sm text-gray-700 block mb-1">Sides (multi-select)</label>
-          <Select
-            isMulti
-            options={filterByCategory('side')}
-            value={menu.sides}
-            onChange={handleMultiSelectChange}
-            placeholder="Select Side Dishes"
-          />
-        </div>
-
-        <div>
-          <label className="text-sm text-gray-700 block mb-1">Bread</label>
-          <Select
-            options={filterByCategory('bread')}
-            value={menu.bread}
-            onChange={(val) => handleSelectChange('bread', val)}
-            placeholder="Select Bread"
-          />
-        </div>
-
-        <div>
-          <label className="text-sm text-gray-700 block mb-1">Hot Beverage</label>
-          <Select
-            options={filterByCategory('beverage')}
-            value={menu.beverage}
-            onChange={(val) => handleSelectChange('beverage', val)}
-            placeholder="Select Beverage"
           />
         </div>
       </div>
 
-      <button
-        type="submit"
-        className="mt-4 bg-red-600 text-white px-6 py-2 rounded hover:bg-red-700"
-      >
-        Save Menu
-      </button>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+        <div>
+          <label className="text-sm block mb-1">Breakfast Recipes</label>
+          <Select
+            isMulti
+            options={recipeOptions('breakfast')}
+            value={menu.breakfast}
+            onChange={(val) => handleChange('breakfast', val)}
+            placeholder="Select breakfast recipes"
+          />
+        </div>
+        <div>
+          <label className="text-sm block mb-1">Lunch Recipes</label>
+          <Select
+            isMulti
+            options={recipeOptions('lunch')}
+            value={menu.lunch}
+            onChange={(val) => handleChange('lunch', val)}
+            placeholder="Select lunch recipes"
+          />
+        </div>
+        <div>
+          <label className="text-sm block mb-1">Dinner Recipes</label>
+          <Select
+            isMulti
+            options={recipeOptions('dinner')}
+            value={menu.dinner}
+            onChange={(val) => handleChange('dinner', val)}
+            placeholder="Select dinner recipes"
+          />
+        </div>
+      </div>
+
+      <div className="text-right mt-4">
+        <button
+          type="submit"
+          className="bg-red-600 text-white px-6 py-2 rounded hover:bg-red-700 flex items-center gap-2"
+        >
+          <FaSave /> Save Menu
+        </button>
+      </div>
     </form>
   );
 }

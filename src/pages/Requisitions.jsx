@@ -1,51 +1,57 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import RequisitionList from '../features/requisitions/RequisitionList';
 import EditModal from '../components/EditModal';
 import SupplierBarChart from '../components/SupplierBarChart';
 import { exportRequisitionsToCSV } from '../components/exportRecipesToPDF';
+import GeneratedRequisitionTable from '../features/requisitions/GeneratedRequisitionTable';
 import { useRequisitions } from '../contexts/RequisitionContext';
+import { useMenus } from '../contexts/MenuContext'; // ✅
 
 export default function Requisitions() {
-  const { requisitions, setRequisitions } = useRequisitions();
+  const {
+    requisitions,
+    fetchRequisitions,
+    addRequisition,
+    updateOne,
+    deleteOne,
+    loading,
+  } = useRequisitions();
+
+  const { generatedRequisitions } = useMenus(); // ✅ use generated data from menus
+
   const [modalOpen, setModalOpen] = useState(false);
   const [editIndex, setEditIndex] = useState(null);
   const [filter, setFilter] = useState('all');
   const [supplierFilter, setSupplierFilter] = useState('all');
 
-  const handleAdd = (newItem) => setRequisitions((prev) => [...prev, newItem]);
+  const handleAdd = async (newItem) => await addRequisition(newItem);
 
-  const handleUpdate = (updated) => {
-    const copy = [...requisitions];
-    copy[editIndex] = updated;
-    setRequisitions(copy);
+  const handleUpdate = async (updated) => {
+    const id = requisitions[editIndex]._id;
+    await updateOne(id, updated);
   };
 
-  const handleDelete = (index) => {
-    const copy = [...requisitions];
-    copy.splice(index, 1);
-    setRequisitions(copy);
+  const handleDelete = async (index) => {
+    const id = requisitions[index]._id;
+    await deleteOne(id);
   };
 
-  const filteredData = requisitions.filter((r) =>
-    filter === 'all' ? true : r.status === filter
-  );
+  useEffect(() => {
+    fetchRequisitions({ status: filter, supplier: supplierFilter });
+  }, [filter, supplierFilter]);
 
-  const finalFilteredData = filteredData.filter((r) =>
-    supplierFilter === 'all' ? true : r.supplier === supplierFilter
-  );
+  const filteredData = requisitions;
+  const uniqueSuppliers = ['all', ...new Set(requisitions.map((r) => r.supplier || ''))];
 
-  const uniqueSuppliers = ['all', ...new Set(requisitions.map((r) => r.supplier))];
-
-  const grouped = finalFilteredData.reduce((acc, r) => {
-    acc[r.supplier] = (acc[r.supplier] || 0) + Number(r.quantity);
+  const grouped = filteredData.reduce((acc, r) => {
+    acc[r.supplier] = (acc[r.supplier] || 0) + Number(r.quantity || 0);
     return acc;
   }, {});
 
   return (
     <div className="p-6">
+      {/* Header Filters */}
       <div className="flex flex-wrap justify-end items-center gap-4 mb-4">
-      
-
         <div className="flex gap-2 flex-wrap">
           {['all', 'pending', 'approved', 'completed'].map((f) => (
             <button
@@ -72,7 +78,7 @@ export default function Requisitions() {
           </select>
 
           <button
-            onClick={() => exportRequisitionsToCSV(finalFilteredData)}
+            onClick={() => exportRequisitionsToCSV(filteredData)}
             className="bg-green-600 text-white px-3 py-1.5 rounded text-sm hover:bg-green-700"
           >
             Export CSV
@@ -90,8 +96,9 @@ export default function Requisitions() {
         </div>
       </div>
 
+      {/* Manual Requisition Table */}
       <RequisitionList
-        data={finalFilteredData}
+        data={filteredData}
         onEdit={(i) => {
           setEditIndex(i);
           setModalOpen(true);
@@ -99,7 +106,7 @@ export default function Requisitions() {
         onDelete={handleDelete}
       />
 
-      {/* Grouped Summary */}
+      {/* Summary */}
       <div className="mt-6 bg-white p-4 rounded-xl shadow">
         <h3 className="text-md font-semibold mb-2 text-gray-700">Grouped by Supplier:</h3>
         <ul className="list-disc pl-6 text-sm text-gray-700">
@@ -111,10 +118,18 @@ export default function Requisitions() {
         </ul>
       </div>
 
-      {/* Bar Chart */}
-      <SupplierBarChart data={finalFilteredData} />
+      {/* Auto-Generated Requisitions */}
+      {generatedRequisitions?.length > 0 && (
+        <div className="mt-10">
+          <h2 className="text-lg font-bold mb-3 text-gray-800">Auto-Generated Requisitions from Menus</h2>
+          <GeneratedRequisitionTable requisitions={generatedRequisitions} />
+        </div>
+      )}
 
-      {/* Modal */}
+      {/* Chart */}
+      <SupplierBarChart data={filteredData} />
+
+      {/* Add/Edit Modal */}
       <EditModal
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}

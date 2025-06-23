@@ -2,11 +2,12 @@ import React from 'react';
 import { FaTrash, FaEdit, FaCalendarAlt, FaMapMarkerAlt, FaUtensils } from 'react-icons/fa';
 
 export default function PlanningTable({ plans = [], menus = [], onEdit, onDelete }) {
-  const getMenuLabel = (index) => {
-    const menu = menus[index];
+  const getMenuLabel = (menuId) => {
+    const menu = menus.find((m) => m._id === menuId);
     if (!menu) return 'Unknown';
     return `${new Date(menu.date).toDateString()} – ${menu.mealType} @ ${menu.base}`;
   };
+
 
   return (
     <div className="bg-white shadow rounded-xl p-6">
@@ -37,13 +38,14 @@ export default function PlanningTable({ plans = [], menus = [], onEdit, onDelete
                   {plan.base}
                 </td>
                 <td className="p-3 text-sm space-y-1">
-                  {plan.menus.map((menuIndex, i) => (
+                  {plan.menus.map((menuId, i) => (
                     <div key={i} className="flex items-center gap-2">
                       <FaUtensils className="text-red-500" />
-                      <span>{getMenuLabel(menuIndex)}</span>
+                      <span>{getMenuLabel(menuId)}</span>
                     </div>
                   ))}
                 </td>
+
                 <td className="p-3">{plan.notes}</td>
                 <td className="p-3 text-center space-x-2">
                   <button onClick={() => onEdit(index)} className="text-blue-600 hover:text-blue-800">

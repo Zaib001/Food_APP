@@ -1,38 +1,42 @@
 import React, { useState } from 'react';
 import PlanningForm from '../features/planning/PlanningForm';
 import PlanningTable from '../features/planning/PlanningTable';
-import { FaFilter, FaPlusCircle } from 'react-icons/fa';
-
-// Sample menus (replace with real data or API)
-const sampleMenus = [
-  { date: '2025-05-10', mealType: 'dinner', base: 'Camp A' },
-  { date: '2025-05-10', mealType: 'lunch', base: 'Camp A' },
-  { date: '2025-05-11', mealType: 'breakfast', base: 'Camp B' },
-  { date: '2025-05-12', mealType: 'snack', base: 'Camp A' },
-];
+import { FaFilter } from 'react-icons/fa';
+import { usePlanning } from '../contexts/PlanningContext';
+import { useMenus } from '../contexts/MenuContext'; 
 
 export default function Planning() {
-  const [plans, setPlans] = useState([]);
+  const {
+    plans,
+    addPlan,
+    editPlan,
+    removePlan,
+    loading,
+  } = usePlanning();
+
+  const { menus } = useMenus(); 
+
   const [editIndex, setEditIndex] = useState(null);
   const [baseFilter, setBaseFilter] = useState('all');
   const [dateFilter, setDateFilter] = useState('');
 
   const handleSave = (plan) => {
     if (editIndex !== null) {
-      const updated = [...plans];
-      updated[editIndex] = plan;
-      setPlans(updated);
+      const existingPlan = plans[editIndex];
+      editPlan(existingPlan._id, plan);
       setEditIndex(null);
     } else {
-      setPlans((prev) => [...prev, plan]);
+      addPlan(plan);
     }
   };
 
   const handleEdit = (index) => setEditIndex(index);
+
   const handleDelete = (index) => {
-    const copy = [...plans];
-    copy.splice(index, 1);
-    setPlans(copy);
+    const planToDelete = plans[index];
+    if (planToDelete && planToDelete._id) {
+      removePlan(planToDelete._id);
+    }
   };
 
   const filteredPlans = plans.filter((p) =>
@@ -44,10 +48,6 @@ export default function Planning() {
 
   return (
     <div className="p-6">
-      {/* <h1 className="text-2xl font-bold mb-6 flex items-center gap-2">
-        <FaPlusCircle /> Planning
-      </h1> */}
-
       {/* Filters */}
       <div className="flex flex-wrap gap-4 mb-6">
         <div className="flex items-center gap-2">
@@ -75,7 +75,7 @@ export default function Planning() {
 
       {/* Form */}
       <PlanningForm
-        menus={sampleMenus}
+        menus={menus}
         onSubmit={handleSave}
         initialValues={editIndex !== null ? plans[editIndex] : null}
       />
@@ -83,7 +83,7 @@ export default function Planning() {
       {/* Table */}
       <PlanningTable
         plans={filteredPlans}
-        menus={sampleMenus}
+        menus={menus}
         onEdit={handleEdit}
         onDelete={handleDelete}
       />

@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Select from 'react-select';
 
-export default function ProductionForm({ recipes, bases, onSubmit }) {
+export default function ProductionForm({ recipes, onSubmit, initialValues = null }) {
   const [form, setForm] = useState({
     recipeId: '',
     quantity: '',
@@ -9,6 +9,10 @@ export default function ProductionForm({ recipes, bases, onSubmit }) {
     base: '',
     handler: '',
   });
+
+  useEffect(() => {
+    if (initialValues) setForm(initialValues);
+  }, [initialValues]);
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -20,6 +24,12 @@ export default function ProductionForm({ recipes, bases, onSubmit }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    const { recipeId, quantity, date, base, handler } = form;
+    console.log(form)
+    if (!recipeId || !quantity || !date || !base || !handler) {
+      alert('Please fill all fields.');
+      return;
+    }
     onSubmit(form);
     setForm({
       recipeId: '',
@@ -30,7 +40,7 @@ export default function ProductionForm({ recipes, bases, onSubmit }) {
     });
   };
 
-  const recipeOptions = recipes.map(r => ({ value: r.id, label: r.name }));
+const recipeOptions = recipes.map(r => ({ value: r._id || r.id, label: r.name }));
 
   return (
     <form
@@ -40,16 +50,21 @@ export default function ProductionForm({ recipes, bases, onSubmit }) {
       <h2 className="text-xl font-bold mb-4 text-gray-800">Log Production Batch</h2>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+        {/* Recipe Select */}
         <div>
           <label className="text-sm text-gray-600 block mb-1">Recipe</label>
           <Select
             options={recipeOptions}
-            value={recipeOptions.find(o => o.value === form.recipeId)}
+            value={recipeOptions.find(o => String(o.value) === String(form.recipeId)) || null}
             onChange={handleSelectChange}
             placeholder="Select Recipe"
+            className="react-select-container"
+            classNamePrefix="react-select"
+            required
           />
         </div>
 
+        {/* Quantity */}
         <div>
           <label className="text-sm text-gray-600 block mb-1">Quantity Produced</label>
           <input
@@ -63,6 +78,7 @@ export default function ProductionForm({ recipes, bases, onSubmit }) {
           />
         </div>
 
+        {/* Date */}
         <div>
           <label className="text-sm text-gray-600 block mb-1">Production Date</label>
           <input
@@ -75,22 +91,21 @@ export default function ProductionForm({ recipes, bases, onSubmit }) {
           />
         </div>
 
+        {/* Base */}
         <div>
           <label className="text-sm text-gray-600 block mb-1">Base / Location</label>
-          <select
+          <input
+            type="text"
             name="base"
             value={form.base}
             onChange={handleChange}
+            placeholder="e.g. Camp Alpha"
             className="w-full border rounded px-3 py-2"
             required
-          >
-            <option value="">Select Base</option>
-            {bases.map((b, i) => (
-              <option key={i} value={b}>{b}</option>
-            ))}
-          </select>
+          />
         </div>
 
+        {/* Handler */}
         <div>
           <label className="text-sm text-gray-600 block mb-1">Handled By</label>
           <input
@@ -105,12 +120,14 @@ export default function ProductionForm({ recipes, bases, onSubmit }) {
         </div>
       </div>
 
-      <button
-        type="submit"
-        className="bg-red-600 text-white px-6 py-2 rounded hover:bg-red-700"
-      >
-        Save Production Log
-      </button>
+      <div className="text-right">
+        <button
+          type="submit"
+          className="bg-red-600 text-white px-6 py-2 rounded hover:bg-red-700"
+        >
+          Save Production Log
+        </button>
+      </div>
     </form>
   );
 }

@@ -10,24 +10,29 @@ import Inventory from './pages/Inventory';
 import Production from './pages/Production';
 import Reports from './pages/Reports';
 import Planning from './pages/Planning';
+import SignUp from './components/SignUp';
+import SignIn from './components/SignIn';
+import PrivateRoute from './components/PrivateRoute'; 
 
 function App() {
   return (
     <Routes>
       <Route path="/" element={<Home />} />
+      <Route path="/signup" element={<SignUp />} />
+      <Route path="/signin" element={<SignIn />} />
 
-      {/* Dashboard layout with nested pages */}
-      <Route path="/dashboard" element={<DashboardLayout />}>
-        <Route index element={<Dashboard />} />
-        <Route path="ingredients" element={<Ingredients />} />
-        {/* Add more nested routes here when needed */}
-        <Route path="menus" element={<Menus />} />
-        <Route path="inventory" element={<Inventory />} />
-        <Route path="planning" element={<Planning />} />
-        <Route path="recipes" element={<Recipes />} />
-        <Route path="requisitions" element={<Requisitions />} />
-        <Route path="production" element={<Production />} />
-        <Route path="reports" element={<Reports />} />
+      <Route path="/dashboard" element={<PrivateRoute />}>
+        <Route element={<DashboardLayout />}>
+          <Route index element={<Dashboard />} />
+          <Route path="ingredients" element={<Ingredients />} />
+          <Route path="menus" element={<Menus />} />
+          <Route path="inventory" element={<Inventory />} />
+          <Route path="planning" element={<Planning />} />
+          <Route path="recipes" element={<Recipes />} />
+          <Route path="requisitions" element={<Requisitions />} />
+          <Route path="production" element={<Production />} />
+          <Route path="reports" element={<Reports />} />
+        </Route>
       </Route>
     </Routes>
   );

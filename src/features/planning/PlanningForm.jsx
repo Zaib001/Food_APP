@@ -16,17 +16,21 @@ export default function PlanningForm({ menus = [], onSubmit }) {
     notes: ''
   });
 
-  const menuOptions = menus.map((menu, i) => ({
-    value: i,
-    label: `${new Date(menu.date).toDateString()} – ${menu.mealType} @ ${menu.base}`
+  const menuOptions = menus.map((menu) => ({
+    value: menu._id,
+    label: `${new Date(menu.date).toDateString()} – ${menu.mealType} @ ${menu.base}`,
   }));
+
 
   const handleChange = (e) => {
     setPlan({ ...plan, [e.target.name]: e.target.value });
   };
 
   const handleMenusChange = (selectedOptions) => {
-    setPlan({ ...plan, menus: selectedOptions.map(opt => opt.value) });
+    setPlan({
+      ...plan,
+      menus: selectedOptions.map(opt => opt._id)
+    });
   };
 
   const handleSubmit = (e) => {
@@ -38,13 +42,13 @@ export default function PlanningForm({ menus = [], onSubmit }) {
   return (
     <form onSubmit={handleSubmit} className="bg-white p-6 rounded-xl shadow mb-6">
       <h2 className="text-xl font-bold mb-4 text-gray-800 flex items-center gap-2">
-        <FaClipboardList  /> Create a New Plan
+        <FaClipboardList /> Create a New Plan
       </h2>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm text-gray-700 mb-1 flex items-center gap-1">
-           Date
+            Date
           </label>
           <input
             type="date"
@@ -58,7 +62,7 @@ export default function PlanningForm({ menus = [], onSubmit }) {
 
         <div>
           <label className="block text-sm text-gray-700 mb-1 flex items-center gap-1">
-          Base / Location
+            Base / Location
           </label>
           <input
             type="text"
@@ -73,21 +77,28 @@ export default function PlanningForm({ menus = [], onSubmit }) {
 
         <div className="md:col-span-2">
           <label className="block text-sm text-gray-700 mb-1 flex items-center gap-1">
-           \Menus (select multiple)
+            Menus (select multiple)
           </label>
           <Select
             isMulti
             options={menuOptions}
-            onChange={handleMenusChange}
-            value={menuOptions.filter(opt => plan.menus.includes(opt.value))}
+            onChange={(selectedOptions) =>
+              setPlan({
+                ...plan,
+                menus: selectedOptions.map(opt => opt.value), // ✅ now using value which is _id
+              })
+            }
+            value={menuOptions.filter((opt) => plan.menus.includes(opt.value))} // ✅ compare with opt.value
             className="react-select-container"
             classNamePrefix="react-select"
           />
+
+
         </div>
 
         <div className="md:col-span-2">
           <label className="block text-sm text-gray-700 mb-1 flex items-center gap-1">
-             Notes (optional)
+            Notes (optional)
           </label>
           <textarea
             name="notes"
