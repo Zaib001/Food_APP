@@ -10,7 +10,7 @@ export default function RecipeForm({ ingredientsList, onSubmit }) {
     category: '',
     ingredients: [],
     procedure: '',
-    image: null, // Store the image file
+    image: null,
   });
 
   const handleChange = (e) => {
@@ -36,39 +36,46 @@ export default function RecipeForm({ ingredientsList, onSubmit }) {
   };
 
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
+ const handleSubmit = (e) => {
+  e.preventDefault();
 
-    if (!recipe.name || !recipe.portions || !recipe.yieldWeight || recipe.ingredients.length === 0) {
-      alert('Please fill in all required fields and add at least one ingredient.');
-      return;
+  if (!recipe.name || !recipe.portions || !recipe.yieldWeight || recipe.ingredients.length === 0) {
+    alert('Please fill in all required fields and add at least one ingredient.');
+    return;
+  }
+
+  const formData = new FormData();
+  Object.entries(recipe).forEach(([key, value]) => {
+    if (key === 'ingredients') {
+      formData.append(key, JSON.stringify(value));
+    } else if (key === 'image' && value) {
+      formData.append(key, value);
+    } else {
+      formData.append(key, value);
     }
+  });
 
-    const formData = new FormData();
-    Object.entries(recipe).forEach(([key, value]) => {
-      if (key === 'ingredients') {
-        formData.append(key, JSON.stringify(value));
-      } else if (key === 'image' && value) {
-        formData.append(key, value);
-      } else {
-        formData.append(key, value);
-      }
-    });
+  // 🔍 Log to inspect formData content
+  console.log('=== FormData Entries ===');
+  for (let pair of formData.entries()) {
+    console.log(`${pair[0]}:`, pair[1]);
+  }
 
-    onSubmit(formData);
+  onSubmit(formData);
 
-    // Reset form
-    setRecipe({
-      name: '',
-      portions: '',
-      yieldWeight: '',
-      type: '',
-      category: '',
-      ingredients: [],
-      procedure: '',
-      image: null,
-    });
-  };
+  // Reset form
+  setRecipe({
+    name: '',
+    portions: '',
+    yieldWeight: '',
+    type: '',
+    category: '',
+    ingredients: [],
+    procedure: '',
+    image: null,
+  });
+};
+
 
   const totalCost = recipe.ingredients.reduce((sum, item) => {
     const ing = ingredientsList.find(i => i._id === item.ingredientId);
@@ -223,7 +230,7 @@ export default function RecipeForm({ ingredientsList, onSubmit }) {
 
       {/* Image Upload */}
       <div className="mb-6">
-        <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+        <label className=" text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
           <FaImage /> Upload Dish Image (optional)
         </label>
         <input

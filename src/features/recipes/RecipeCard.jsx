@@ -17,9 +17,6 @@ export default function RecipeCard({ recipe, ingredientsMap, onEdit, onDelete })
   const getPrice = (id) => parseFloat(ingredientsMap[id]?.pricePerKg) || 0;
   const getKcal = (id) => parseFloat(ingredientsMap[id]?.kcal) || 0;
   const getYield = (id) => parseFloat(ingredientsMap[id]?.yield) || 100;
-
-
-
   const totalCost = recipe.ingredients.reduce((sum, item) => {
     const adjustedQty = item.quantity / (getYield(item.ingredientId) / 100);
     return sum + adjustedQty * getPrice(item.ingredientId);
@@ -82,21 +79,22 @@ export default function RecipeCard({ recipe, ingredientsMap, onEdit, onDelete })
           </div>
         )}
         {recipe.imageUrl && (
-          <img
-            src={recipe.imageUrl}
-            alt="Dish"
-            className="w-full h-40 object-cover rounded mb-3"
-          />
+          <div className="flex justify-center mb-3">
+            <img
+              src={`${import.meta.env.VITE_API_IMG_URL}${recipe.imageUrl}`} 
+              alt="Dish"
+              className="h-40 object-cover rounded"
+            />
+          </div>
         )}
 
-        {recipe.procedure && (
-          <p className="text-sm text-gray-600 mb-3 whitespace-pre-wrap">
-            <strong>Procedure:</strong> {recipe.procedure}
-          </p>
-        )}
 
       </div>
-
+      {recipe.procedure && (
+        <p className="text-sm text-gray-600 mb-3 whitespace-pre-wrap">
+          <strong>Procedure:</strong> {recipe.procedure}
+        </p>
+      )}
       {/* Ingredients */}
       <ul className="mb-4 text-sm text-gray-700 space-y-1">
         {recipe.ingredients.map((item, idx) => (
