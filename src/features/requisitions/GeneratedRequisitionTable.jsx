@@ -1,5 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { FaTruck } from 'react-icons/fa';
+import { useMenus } from '../../contexts/MenuContext';
+import { useRecipes } from '../../contexts/RecipeContext';
+import { useIngredients } from '../../contexts/IngredientContext';
 
 export default function GeneratedRequisitionTable({ requisitions = [] }) {
   if (!requisitions || requisitions.length === 0) {

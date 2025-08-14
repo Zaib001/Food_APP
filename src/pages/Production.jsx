@@ -51,7 +51,12 @@ export default function Production({ bases = [] }) {
     fetchProductions(f);
   }, [filters]);
 
-  const filteredLogs = productions;
+
+  const filteredLogs = logs.filter(log =>
+    (filters.recipe === 'all' || log.recipeId === filters.recipe) &&
+    (filters.base === 'all' || log.base === filters.base) &&
+    (!filters.date || log.date === filters.date)
+  );
 
   return (
     <div className="p-6">

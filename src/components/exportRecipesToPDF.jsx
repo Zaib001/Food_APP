@@ -2,13 +2,6 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { utils, writeFile } from 'xlsx';
 
-
-const safe = (val, fallback = 0) => {
-  const num = parseFloat(val);
-  return isNaN(num) ? fallback : num;
-};
-
-
 export const exportRecipesToPDF = (recipes, ingredientsMap) => {
   const doc = new jsPDF();
   doc.setFontSize(18);
@@ -19,48 +12,59 @@ export const exportRecipesToPDF = (recipes, ingredientsMap) => {
   recipes.forEach((recipe, index) => {
     let totalKcal = 0;
     let totalCost = 0;
-    const portions = safe(recipe.portions, 1);
-    const yieldWeight = safe(recipe.yieldWeight, 1);
+    const portions = recipe.portions || 1;
+    const yieldWeight = recipe.yieldWeight || 1;
 
     const body = recipe.ingredients.map((item) => {
       const ing = ingredientsMap[item.ingredientId];
-      if (!ing) return ['Unknown', '-', '-', '-', '-', '-', '-'];
+      if (!ing) return ['Unknown', '-', '-', '-', '-', '-'];
 
-      const quantity = safe(item.quantity);
-      const pricePerKg = safe(ing.pricePerKg);
-      const kcalPerKg = safe(ing.kcal);
-      const yieldPercent = safe(ing.yield, 100);
-
-      const adjustedQty = yieldPercent !== 0 ? quantity / (yieldPercent / 100) : 0;
-      const kcal = (quantity * kcalPerKg) / 1000;
-      const cost = adjustedQty * pricePerKg;
+      const adjustedQty = item.quantity / (ing.yield / 100);
+      const kcal = (item.quantity * ing.kcal) / 1000;
+      const cost = adjustedQty * ing.price;
 
       totalKcal += kcal;
       totalCost += cost;
 
       return [
         ing.name,
-        quantity.toFixed(2),
-        ing.purchaseUnit || '-',
+        item.quantity,
+        ing.unit,
         adjustedQty.toFixed(2),
         kcal.toFixed(2),
         '$' + cost.toFixed(2),
-        ing.supplier || '-',
       ];
     });
 
-    body.push(['TOTAL', '', '', '', totalKcal.toFixed(2), '$' + totalCost.toFixed(2), '']);
+    body.push([
+      'TOTAL',
+      '',
+      '',
+      '',
+      totalKcal.toFixed(2),
+      '$' + totalCost.toFixed(2),
+    ]);
 
     autoTable(doc, {
       startY: yOffset,
-      head: [[`${index + 1}. ${recipe.name.toUpperCase()}`, '', '', '', '', '', '']],
+      head: [[
+        `${index + 1}. ${recipe.name.toUpperCase()}`,
+        '', '', '', '', ''
+      ]],
       theme: 'plain',
       styles: { fontStyle: 'bold', fontSize: 12 },
     });
 
     autoTable(doc, {
       startY: doc.lastAutoTable.finalY + 2,
-      head: [['Ingredient', 'Qty', 'Unit', 'Adj Qty', 'KCAL', 'Cost', 'Supplier']],
+      head: [[
+        'Ingredient',
+        'Qty',
+        'Unit',
+        'Adj Qty',
+        'KCAL',
+        'Cost'
+      ]],
       body,
       theme: 'grid',
       styles: { fontSize: 10 },
@@ -69,7 +73,7 @@ export const exportRecipesToPDF = (recipes, ingredientsMap) => {
     autoTable(doc, {
       startY: doc.lastAutoTable.finalY + 4,
       body: [
-        ['Portions', portions, 'Yield (kg)', yieldWeight],
+        ['Portions', recipe.portions || '-', 'Yield (kg)', recipe.yieldWeight || '-'],
         ['Type', recipe.type || '-', 'Category', recipe.category || '-'],
         ['Cost / Portion', `$${(totalCost / portions).toFixed(2)}`, 'KCAL / Portion', (totalKcal / portions).toFixed(2)],
       ],
@@ -83,17 +87,13 @@ export const exportRecipesToPDF = (recipes, ingredientsMap) => {
   doc.save('recipes.pdf');
 };
 
-
-
-
 export const exportRecipesToCSV = (recipes, ingredientsMap) => {
   const rows = [];
 
   recipes.forEach((recipe) => {
     let totalKcal = 0;
     let totalCost = 0;
-    const portions = safe(recipe.portions, 1);
-    const yieldWeight = safe(recipe.yieldWeight);
+    const portions = recipe.portions || 1;
 
     rows.push([
       'Recipe Name:', recipe.name,
@@ -101,45 +101,39 @@ export const exportRecipesToCSV = (recipes, ingredientsMap) => {
       'Category:', recipe.category || '',
     ]);
     rows.push([
-      'Portions:', portions,
-      'Yield Weight:', yieldWeight,
+      'Portions:', recipe.portions || '',
+      'Yield Weight:', recipe.yieldWeight || ''
     ]);
     rows.push([]);
-    rows.push(['Ingredient', 'Qty', 'Unit', 'Adj Qty', 'KCAL', 'Cost', 'Supplier']);
+    rows.push(['Ingredient', 'Qty', 'Unit', 'Adj Qty', 'KCAL', 'Cost']);
 
     recipe.ingredients.forEach((item) => {
       const ing = ingredientsMap[item.ingredientId];
       if (!ing) return;
 
-      const quantity = safe(item.quantity);
-      const pricePerKg = safe(ing.pricePerKg);
-      const kcalPerKg = safe(ing.kcal);
-      const yieldPercent = safe(ing.yield, 100);
-
-      const adjustedQty = yieldPercent !== 0 ? quantity / (yieldPercent / 100) : 0;
-      const kcal = (quantity * kcalPerKg) / 1000;
-      const cost = adjustedQty * pricePerKg;
+      const adjustedQty = item.quantity / (ing.yield / 100);
+      const kcal = (item.quantity * ing.kcal) / 1000;
+      const cost = adjustedQty * ing.price;
 
       totalKcal += kcal;
       totalCost += cost;
 
       rows.push([
         ing.name,
-        quantity.toFixed(2),
-        ing.purchaseUnit || '-',
+        item.quantity,
+        ing.unit,
         adjustedQty.toFixed(2),
         kcal.toFixed(2),
         cost.toFixed(2),
-        ing.supplier || '-',
       ]);
     });
 
-    rows.push(['TOTAL', '', '', '', totalKcal.toFixed(2), totalCost.toFixed(2), '']);
+    rows.push(['TOTAL', '', '', '', totalKcal.toFixed(2), totalCost.toFixed(2)]);
     rows.push([
       'Cost / Portion', (totalCost / portions).toFixed(2),
-      'KCAL / Portion', (totalKcal / portions).toFixed(2),
+      'KCAL / Portion', (totalKcal / portions).toFixed(2)
     ]);
-    rows.push([]);
+    rows.push([]); // space between recipes
   });
 
   const sheet = utils.aoa_to_sheet(rows);
@@ -147,6 +141,12 @@ export const exportRecipesToCSV = (recipes, ingredientsMap) => {
   utils.book_append_sheet(workbook, sheet, 'Recipes');
   writeFile(workbook, 'recipes_export.xlsx');
 };
+
+
+
+
+
+
 
 
 

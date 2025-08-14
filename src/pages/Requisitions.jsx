@@ -24,6 +24,7 @@ export default function Requisitions() {
   const [editIndex, setEditIndex] = useState(null);
   const [filter, setFilter] = useState('all');
   const [supplierFilter, setSupplierFilter] = useState('all');
+  
 
   // --- helper: get current user name from JWT or localStorage ---
   const getCurrentUserName = () => {
