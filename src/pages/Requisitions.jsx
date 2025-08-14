@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
+// src/pages/Requisitions.jsx
+import React, { useState, useEffect, useMemo } from 'react';
 import RequisitionList from '../features/requisitions/RequisitionList';
 import EditModal from '../components/EditModal';
 import SupplierBarChart from '../components/SupplierBarChart';
 import { exportRequisitionsToCSV } from '../components/exportRecipesToPDF';
 import GeneratedRequisitionTable from '../features/requisitions/GeneratedRequisitionTable';
 import { useRequisitions } from '../contexts/RequisitionContext';
-import { useMenus } from '../contexts/MenuContext'; // ✅
+import { useMenus } from '../contexts/MenuContext';
 
 export default function Requisitions() {
   const {
@@ -17,14 +18,50 @@ export default function Requisitions() {
     loading,
   } = useRequisitions();
 
-  const { generatedRequisitions } = useMenus(); // ✅ use generated data from menus
+  const { generatedRequisitions } = useMenus();
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editIndex, setEditIndex] = useState(null);
   const [filter, setFilter] = useState('all');
   const [supplierFilter, setSupplierFilter] = useState('all');
 
-  const handleAdd = async (newItem) => await addRequisition(newItem);
+  // --- helper: get current user name from JWT or localStorage ---
+  const getCurrentUserName = () => {
+    try {
+      // prefer explicit saved name if your app stores it
+      const storedName = localStorage.getItem('userName') || localStorage.getItem('name');
+      if (storedName) return storedName;
+
+      const token = localStorage.getItem('token');
+      if (!token) return 'Manual Entry';
+      const parts = token.split('.');
+      if (parts.length !== 3) return 'Manual Entry';
+      const payload = JSON.parse(atob(parts[1] || ''));
+      // try common claim keys
+      return (
+        payload?.name ||
+        payload?.username ||
+        payload?.user?.name ||
+        payload?.email ||
+        'Manual Entry'
+      );
+    } catch {
+      return 'Manual Entry';
+    }
+  };
+
+  const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
+
+  const handleAdd = async (newItem) => {
+    // ensure requestedBy is set (modal already pre-fills, this is a safety net)
+    const payload = {
+      status: 'pending',
+      ...newItem,
+      requestedBy: newItem?.requestedBy || getCurrentUserName(),
+      date: newItem?.date || today,
+    };
+    await addRequisition(payload);
+  };
 
   const handleUpdate = async (updated) => {
     const id = requisitions[editIndex]._id;
@@ -48,6 +85,21 @@ export default function Requisitions() {
     return acc;
   }, {});
 
+  // initial values for modal:
+  const modalInitialValues =
+    editIndex !== null
+      ? requisitions[editIndex]
+      : {
+        date: today,
+        requestedBy: getCurrentUserName(),
+        status: 'pending',
+        // optionally set sensible defaults:
+        supplier: 'Default Supplier',
+        unit: '',
+        item: '',
+        quantity: 0,
+      };
+
   return (
     <div className="p-6">
       {/* Header Filters */}
@@ -57,9 +109,8 @@ export default function Requisitions() {
             <button
               key={f}
               onClick={() => setFilter(f)}
-              className={`px-3 py-1 rounded text-sm capitalize ${
-                filter === f ? 'bg-red-600 text-white' : 'bg-gray-100 hover:bg-gray-200'
-              }`}
+              className={`px-3 py-1 rounded text-sm capitalize ${filter === f ? 'bg-red-600 text-white' : 'bg-gray-100 hover:bg-gray-200'
+                }`}
             >
               {f}
             </button>
@@ -134,7 +185,7 @@ export default function Requisitions() {
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
         onSave={editIndex === null ? handleAdd : handleUpdate}
-        initialValues={editIndex !== null ? requisitions[editIndex] : {}}
+        initialValues={modalInitialValues}
         title={editIndex !== null ? 'Edit Requisition' : 'New Requisition'}
         fields={[
           { name: 'date', label: 'Date', type: 'date' },
@@ -143,9 +194,20 @@ export default function Requisitions() {
           { name: 'quantity', label: 'Quantity', type: 'number' },
           { name: 'unit', label: 'Unit' },
           { name: 'supplier', label: 'Supplier' },
-          { name: 'status', label: 'Status' },
+          {
+            name: 'status',
+            label: 'Status',
+            type: 'select',
+            options: [
+              { label: 'Pending', value: 'pending' },
+              { label: 'Approved', value: 'approved' },
+              { label: 'Completed', value: 'completed' },
+            ],
+          },
+          { name: 'base', label: 'Base / Location' },
         ]}
       />
+
     </div>
   );
 }

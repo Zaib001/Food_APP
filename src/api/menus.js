@@ -21,9 +21,6 @@ export const deleteMenu = async (id) => {
 export const generateRequisitions = async (peopleCount = 100) => {
   return await axios.get(`${API_URL}/menus/requisitions`, {
     params: { peopleCount },
-    headers: {
-      Authorization: `Bearer ${localStorage.getItem('token')}`
-    }
+    headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
   });
 };
-

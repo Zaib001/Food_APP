@@ -11,6 +11,8 @@ API.interceptors.request.use(config => {
 });
 
 export const getAllRecipes = () => API.get('/recipes');
+export const getRecipeById = (id) => API.get(`/recipes/${id}`);
 export const createRecipe = (data) => API.post('/recipes', data);
 export const updateRecipe = (id, data) => API.put(`/recipes/${id}`, data);
 export const deleteRecipe = (id) => API.delete(`/recipes/${id}`);
+export const scaleRecipeApi = (id, clientCount) => API.post(`/recipes/${id}/scale`, { clientCount });

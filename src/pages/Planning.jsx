@@ -3,18 +3,11 @@ import PlanningForm from '../features/planning/PlanningForm';
 import PlanningTable from '../features/planning/PlanningTable';
 import { FaFilter } from 'react-icons/fa';
 import { usePlanning } from '../contexts/PlanningContext';
-import { useMenus } from '../contexts/MenuContext'; 
+import { useMenus } from '../contexts/MenuContext';
 
 export default function Planning() {
-  const {
-    plans,
-    addPlan,
-    editPlan,
-    removePlan,
-    loading,
-  } = usePlanning();
-
-  const { menus } = useMenus(); 
+  const { plans, addPlan, editPlan, removePlan, loading } = usePlanning();
+  const { menus } = useMenus();
 
   const [editIndex, setEditIndex] = useState(null);
   const [baseFilter, setBaseFilter] = useState('all');
@@ -34,9 +27,7 @@ export default function Planning() {
 
   const handleDelete = (index) => {
     const planToDelete = plans[index];
-    if (planToDelete && planToDelete._id) {
-      removePlan(planToDelete._id);
-    }
+    if (planToDelete && planToDelete._id) removePlan(planToDelete._id);
   };
 
   const filteredPlans = plans.filter((p) =>
@@ -83,7 +74,6 @@ export default function Planning() {
       {/* Table */}
       <PlanningTable
         plans={filteredPlans}
-        menus={menus}
         onEdit={handleEdit}
         onDelete={handleDelete}
       />

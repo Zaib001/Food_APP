@@ -7,16 +7,12 @@ import { FaFileCsv, FaFilePdf, FaReceipt } from 'react-icons/fa';
 
 import { useMenus } from '../contexts/MenuContext';
 import { useIngredients } from '../contexts/IngredientContext';
-import { useRecipes } from '../contexts/RecipeContext';
 
 export default function Menus() {
   const { menus, addMenu, generateRequisitionsFromServer, generatedRequisitions } = useMenus();
   const { ingredients } = useIngredients();
-  const { recipes } = useRecipes();
 
-  const [requisitions, setRequisitions] = useState([]);
   const [selectedWeek, setSelectedWeek] = useState('all');
-
   const [loading, setLoading] = useState(false);
 
   const handleGenerate = async () => {
@@ -24,14 +20,11 @@ export default function Menus() {
     await generateRequisitionsFromServer(100);
     setLoading(false);
   };
-  const ingredientsMap = {};
-  ingredients.forEach(i => {
-    ingredientsMap[i._id] = i;
-  });
 
-  const handleSubmit = (newMenu) => {
-    addMenu(newMenu);
-  };
+  const ingredientsMap = {};
+  ingredients.forEach(i => { ingredientsMap[i._id] = i; });
+
+  const handleSubmit = (newMenu) => { addMenu(newMenu); };
 
   const currentWeekDates = () => {
     const today = new Date();
@@ -48,10 +41,9 @@ export default function Menus() {
     ? menus
     : menus.filter(menu => weekDates.includes(menu.date));
 
-
   return (
     <div className="p-6">
-      {/* Export Buttons */}
+      {/* Export / Actions */}
       <div className="flex flex-wrap justify-end gap-3 mb-6">
         <button
           onClick={() => exportMenusToCSV(filteredMenus, ingredientsMap)}
@@ -68,8 +60,7 @@ export default function Menus() {
         <button
           onClick={handleGenerate}
           disabled={loading}
-          className={`flex items-center gap-2 px-4 py-2 rounded text-sm ${loading ? 'bg-gray-400' : 'bg-yellow-600 hover:bg-yellow-700'
-            } text-white`}
+          className={`flex items-center gap-2 px-4 py-2 rounded text-sm ${loading ? 'bg-gray-400' : 'bg-yellow-600 hover:bg-yellow-700'} text-white`}
         >
           <FaReceipt />
           {loading ? 'Generating...' : 'Generate Requisitions'}
@@ -92,8 +83,7 @@ export default function Menus() {
         </button>
       </div>
 
-      {/* UI Sections */}
-      <MenuPlanner ingredients={ingredients} onSubmit={handleSubmit} />
+      <MenuPlanner onSubmit={handleSubmit} />
       <MenuCalendar menus={filteredMenus} ingredientsMap={ingredientsMap} />
       <GeneratedRequisitionTable requisitions={generatedRequisitions} />
     </div>
