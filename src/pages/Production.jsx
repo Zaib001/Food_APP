@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import ProductionForm from '../features/production/ProductionForm';
 import ProductionTable from '../features/production/ProductionTable';
 import { FaFilePdf } from 'react-icons/fa';
@@ -15,7 +15,10 @@ export default function Production({ bases = [] }) {
   const [editIndex, setEditIndex] = useState(null);
   const [filters, setFilters] = useState({ recipe: 'all', base: 'all', date: '' });
 
-  const recipesMap = Object.fromEntries(recipes.map(r => [r._id || r.id, r]));
+  const recipesMap = useMemo(
+    () => Object.fromEntries((recipes || []).map(r => [r._id || r.id, r])),
+    [recipes]
+  );
 
   const handleSubmit = async (entry) => {
     const qty = Number(entry.quantity || 0);
@@ -23,7 +26,7 @@ export default function Production({ bases = [] }) {
 
     if (ingredientsUsed && qty > 0) {
       ingredientsUsed.forEach(({ ingredientId, qtyPerUnit }) => {
-        const totalQty = qtyPerUnit * qty;
+        const totalQty = (Number(qtyPerUnit) || 0) * qty;
         deductStock(ingredientId, totalQty);
       });
     }
@@ -38,25 +41,28 @@ export default function Production({ bases = [] }) {
   };
 
   const handleEdit = (index) => setEditIndex(index);
+
   const handleDelete = async (index) => {
     const target = productions[index];
-    await deleteOne(target._id);
+    if (target?._id) await deleteOne(target._id);
   };
 
+  // fetch when filters change
   useEffect(() => {
     const f = {};
     if (filters.recipe !== 'all') f.recipe = filters.recipe;
     if (filters.base !== 'all') f.base = filters.base;
     if (filters.date) f.date = filters.date;
     fetchProductions(f);
-  }, [filters]);
+  }, [filters, fetchProductions]);
 
-
-  const filteredLogs = logs.filter(log =>
-    (filters.recipe === 'all' || log.recipeId === filters.recipe) &&
-    (filters.base === 'all' || log.base === filters.base) &&
-    (!filters.date || log.date === filters.date)
-  );
+  const filteredLogs = useMemo(() => {
+    return (productions || []).filter((log) =>
+      (filters.recipe === 'all' || (log.recipeId === filters.recipe || log.recipe?._id === filters.recipe)) &&
+      (filters.base === 'all' || log.base === filters.base) &&
+      (!filters.date || log.date === filters.date)
+    );
+  }, [productions, filters]);
 
   return (
     <div className="p-6">
@@ -69,7 +75,7 @@ export default function Production({ bases = [] }) {
             className="px-3 py-1 text-sm border border-gray-300 rounded"
           >
             <option value="all">All Recipes</option>
-            {recipes.map((r) => (
+            {(recipes || []).map((r) => (
               <option key={r._id || r.id} value={r._id || r.id}>{r.name}</option>
             ))}
           </select>
@@ -80,7 +86,7 @@ export default function Production({ bases = [] }) {
             className="px-3 py-1 text-sm border border-gray-300 rounded"
           >
             <option value="all">All Bases</option>
-            {bases.map((b, i) => (
+            {(bases || []).map((b, i) => (
               <option key={i} value={b}>{b}</option>
             ))}
           </select>
@@ -116,4 +122,3 @@ export default function Production({ bases = [] }) {
     </div>
   );
 }
-
