@@ -7,3 +7,6 @@ body {
   font-family: "Inter", serif;
   @apply bg-gray-100 text-gray-800;
 }
+
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }

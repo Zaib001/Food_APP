@@ -15,6 +15,7 @@ import {
   fetchCategoryShare,
   fetchActivityLog,
 } from '../api/dashboard';
+import FoodLoader from '../components/ui/FoodLoader';
 
 export default function Dashboard() {
   const [stats, setStats] = useState(null);
@@ -51,7 +52,6 @@ export default function Dashboard() {
     loadDashboardData();
   }, []);
 
-  if (loading) return <div className="p-6">Loading dashboard...</div>;
   if (error) return <div className="p-6 text-red-600">{error}</div>;
 
   return (

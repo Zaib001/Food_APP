@@ -16,3 +16,4 @@ export const createRecipe = (data) => API.post('/recipes', data);
 export const updateRecipe = (id, data) => API.put(`/recipes/${id}`, data);
 export const deleteRecipe = (id) => API.delete(`/recipes/${id}`);
 export const scaleRecipeApi = (id, clientCount) => API.post(`/recipes/${id}/scale`, { clientCount });
+export const setRecipeLock = (id, isLocked, note = '') => API.patch(`/recipes/${id}/lock`, { isLocked, note });

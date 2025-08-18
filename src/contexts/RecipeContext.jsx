@@ -108,7 +108,7 @@ export const RecipeProvider = ({ children }) => {
         quickScaleRecipeAtIndex,
       }}
     >
-      {loading ? <div className="p-6">Loading recipes...</div> : children}
+      {children}
     </RecipeContext.Provider>
   );
 };

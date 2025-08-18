@@ -6,6 +6,7 @@ import {
   deleteIngredient,
 } from '../api/ingredientApi';
 import toast from 'react-hot-toast';
+import FoodLoader from '../components/ui/FoodLoader'; // ← animated loader
 
 const IngredientContext = createContext();
 export const useIngredients = () => useContext(IngredientContext);
@@ -14,11 +15,10 @@ export const IngredientProvider = ({ children }) => {
   const [ingredients, setIngredients] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchIngredients();
-  }, []);
+  useEffect(() => { fetchIngredients(); }, []);
 
   const fetchIngredients = async () => {
+    setLoading(true); // ← ensure we show loader on refresh too
     try {
       const res = await getAllIngredients();
       setIngredients(res.data);
@@ -64,6 +64,7 @@ export const IngredientProvider = ({ children }) => {
       toast.error(err.response?.data?.message || 'Delete failed');
     }
   };
+
   const deductStock = (ingredientId, amount) => {
     setIngredients(prev =>
       prev.map(ing =>
@@ -73,17 +74,21 @@ export const IngredientProvider = ({ children }) => {
       )
     );
   };
+
   return (
     <IngredientContext.Provider
       value={{
         ingredients,
+        loading,              // ← exposed for consumers
+        refresh: fetchIngredients,
         addIngredient,
         deductStock,
         updateIngredient: updateIngredientAtIndex,
         deleteIngredient: deleteIngredientAtIndex,
       }}
     >
-      {loading ? <div className="p-6">Loading ingredients...</div> : children}
+          {children}
+
     </IngredientContext.Provider>
   );
 };

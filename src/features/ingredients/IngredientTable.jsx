@@ -1,82 +1,87 @@
-import React from 'react';
-import { motion } from 'framer-motion';
-import { FaEdit, FaTrash } from 'react-icons/fa';
+import React from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { FaEdit, FaTrash } from "react-icons/fa";
 
-export default function IngredientTable({ ingredients = [], onEdit, onDelete }) {
+export function IngredientTable({ ingredients = [], onEdit, onDelete }) {
   if (!Array.isArray(ingredients)) {
-    return <div className="text-red-600 p-4">Invalid ingredient data.</div>;
+    return <div className="text-rose-600 p-4">Invalid ingredient data.</div>;
   }
 
   return (
     <motion.div
-      className="bg-white shadow-lg rounded-xl p-6 border border-gray-100"
+      className="bg-white/80 shadow-xl rounded-2xl p-6 border border-gray-100 overflow-hidden"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
     >
-      <h2 className="text-xl font-bold mb-6 text-gray-800">Ingredient List</h2>
+      <h2 className="text-xl font-bold mb-4 text-gray-800">Ingredient List</h2>
 
       <div className="overflow-x-auto">
-        <table className="w-full text-sm text-left border border-gray-200">
-          <thead className="bg-gray-100 text-gray-700 font-semibold">
-            <tr>
-              <th className="p-3 border-b">Name</th>
-              <th className="p-3 border-b">Purchase Qty</th>
-              <th className="p-3 border-b">Purchase Unit</th>
-              <th className="p-3 border-b">Original Unit</th>
-              <th className="p-3 border-b">Price/Unit</th>
-              <th className="p-3 border-b">Price/Kg</th>
-              <th className="p-3 border-b">Yield</th>
-              <th className="p-3 border-b">Standard Wt</th>
-              <th className="p-3 border-b">KCAL</th>
-              <th className="p-3 border-b">Category</th>
-              <th className="p-3 border-b">Warehouse</th>
-              <th className="p-3 border-b text-center">Actions</th>
+        <table className="w-full text-sm text-left">
+          <thead className="bg-gray-50 text-gray-700 font-semibold">
+            <tr className="border-y">
+              {[
+                "Name",
+                "Purchase Qty",
+                "Purchase Unit",
+                "Original Unit",
+                "Price/Unit",
+                "Price/Base Unit",
+                "Yield",
+                "Standard Wt",
+                "KCAL",
+                "Category",
+                "Warehouse",
+                "Actions",
+              ].map((h) => (
+                <th key={h} className="p-3 whitespace-nowrap">
+                  {h}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
-            {ingredients.length === 0 ? (
-              <tr>
-                <td colSpan="12" className="p-4 text-center text-gray-500">
-                  No ingredients available.
-                </td>
-              </tr>
-            ) : (
-              ingredients.map((ing, index) => (
-                <tr
-                  key={index}
-                  className={`transition duration-200 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-red-50`}
-                >
-                  <td className="p-3 border-b">{ing.name}</td>
-                  <td className="p-3 border-b">{ing.purchaseQuantity}</td>
-                  <td className="p-3 border-b">{ing.purchaseUnit}</td>
-                  <td className="p-3 border-b">{ing.originalUnit}</td>
-                  <td className="p-3 border-b">${parseFloat(ing.originalPrice).toFixed(2)}</td>
-                  <td className="p-3 border-b">${parseFloat(ing.pricePerKg).toFixed(2)}</td>
-                  <td className="p-3 border-b">{ing.yield}%</td>
-                  <td className="p-3 border-b">{ing.standardWeight || '-'}</td>
-                  <td className="p-3 border-b">{ing.kcal}</td>
-                  <td className="p-3 border-b capitalize">{ing.category || '-'}</td>
-                  <td className="p-3 border-b">{ing.warehouse || '-'}</td>
-                  <td className="p-3 border-b text-center">
-                    <button
-                      onClick={() => onEdit(index)}
-                      className="text-blue-600 hover:text-blue-800 mr-3"
-                      title="Edit"
-                    >
-                      <FaEdit />
-                    </button>
-                    <button
-                      onClick={() => onDelete(index)}
-                      className="text-red-600 hover:text-red-800"
-                      title="Delete"
-                    >
-                      <FaTrash />
-                    </button>
+            <AnimatePresence>
+              {ingredients.length === 0 ? (
+                <tr>
+                  <td colSpan={12} className="p-6 text-center text-gray-500">
+                    No ingredients available.
                   </td>
                 </tr>
-              ))
-            )}
+              ) : (
+                ingredients.map((ing, index) => (
+                  <motion.tr
+                    key={index}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className={`transition duration-200 ${index % 2 === 0 ? "bg-white" : "bg-gray-50"} hover:bg-rose-50 border-b`}
+                  >
+                    <td className="p-3 whitespace-nowrap">{ing.name}</td>
+                    <td className="p-3 whitespace-nowrap">{ing.purchaseQuantity}</td>
+                    <td className="p-3 whitespace-nowrap">{ing.purchaseUnit}</td>
+                    <td className="p-3 whitespace-nowrap">{ing.originalUnit}</td>
+                    <td className="p-3 whitespace-nowrap">${Number(ing.originalPrice).toFixed(2)}</td>
+                    <td className="p-3 whitespace-nowrap">${Number(ing.pricePerKg).toFixed(2)}</td>
+                    <td className="p-3 whitespace-nowrap">{ing.yield}%</td>
+                    <td className="p-3 whitespace-nowrap">{ing.standardWeight || "-"}</td>
+                    <td className="p-3 whitespace-nowrap">{ing.kcal}</td>
+                    <td className="p-3 whitespace-nowrap capitalize">{ing.category || "-"}</td>
+                    <td className="p-3 whitespace-nowrap">{ing.warehouse || "-"}</td>
+                    <td className="p-3 whitespace-nowrap">
+                      <div className="flex items-center gap-3">
+                        <button onClick={() => onEdit(index)} className="text-sky-600 hover:text-sky-800" title="Edit">
+                          <FaEdit />
+                        </button>
+                        <button onClick={() => onDelete(index)} className="text-rose-600 hover:text-rose-800" title="Delete">
+                          <FaTrash />
+                        </button>
+                      </div>
+                    </td>
+                  </motion.tr>
+                ))
+              )}
+            </AnimatePresence>
           </tbody>
         </table>
       </div>

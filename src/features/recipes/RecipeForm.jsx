@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { FaPlus, FaUtensils, FaImage, FaCalculator, FaLock } from 'react-icons/fa';
+import { FaPlus, FaUtensils, FaImage, FaCalculator, FaLock, FaTrash } from 'react-icons/fa';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const RECIPE_TYPES = [
   'Fruit', 'Protein', 'Side Dish', 'Salad',
@@ -7,11 +8,32 @@ const RECIPE_TYPES = [
   'Desserts', 'Base Recipes'
 ];
 
+const inputVariants = {
+  focus: {
+    boxShadow: "0 0 0 2px rgba(59, 130, 246, 0.5)",
+    transition: { duration: 0.2 }
+  }
+};
+
+const ingredientItemVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { 
+    opacity: 1, 
+    y: 0,
+    transition: { 
+      type: "spring",
+      stiffness: 300,
+      damping: 24
+    }
+  },
+  exit: { opacity: 0, x: -20 }
+};
+
 export default function RecipeForm({
   ingredientsList,
   onSubmit,
   isEditing = false,
-  initialRecipe = null, // provide when editing
+  initialRecipe = null,
 }) {
   const [recipe, setRecipe] = useState({
     name: '',
@@ -26,7 +48,6 @@ export default function RecipeForm({
     basePortions: 10,
   });
 
-  // prefill if editing
   useEffect(() => {
     if (isEditing && initialRecipe) {
       setRecipe({
@@ -50,6 +71,7 @@ export default function RecipeForm({
   }, [isEditing, initialRecipe]);
 
   const [clientCount, setClientCount] = useState(10);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const totalWeight = useMemo(() => {
     return recipe.ingredients.reduce((sum, it) => sum + (parseFloat(it.quantity) || 0), 0);
@@ -105,11 +127,13 @@ export default function RecipeForm({
     }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setIsSubmitting(true);
 
     if (!recipe.name || !recipe.portions || !recipe.type || recipe.ingredients.length === 0) {
       alert('Please fill in all required fields and add at least one ingredient.');
+      setIsSubmitting(false);
       return;
     }
 
@@ -129,7 +153,11 @@ export default function RecipeForm({
     formData.append('isLocked', recipe.isLocked ? 'true' : 'false');
     if (recipe.image) formData.append('image', recipe.image);
 
-    onSubmit(formData);
+    try {
+      await onSubmit(formData);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // cost & kcal
@@ -146,229 +174,320 @@ export default function RecipeForm({
   }, { totalCost: 0, totalKcal: 0 });
 
   return (
-    <form onSubmit={handleSubmit} className="bg-white shadow-lg rounded-xl p-6 border border-gray-100 mb-8">
-      <div className="flex items-center gap-2 mb-6 text-red-600">
-        <FaUtensils className="text-xl" />
-        <h2 className="text-xl font-bold text-gray-800">
+    <motion.form 
+      onSubmit={handleSubmit}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="bg-white shadow-xl rounded-lg p-6 border border-gray-100 mb-8 max-w-7xl mx-auto"
+    >
+      <div className="flex items-center gap-3 mb-8">
+        <motion.div 
+          animate={{ rotate: [0, 10, -10, 0] }}
+          transition={{ duration: 0.5 }}
+          className="p-3 bg-red-100 rounded-full"
+        >
+          <FaUtensils className="text-xl text-red-600" />
+        </motion.div>
+        <h2 className="text-2xl font-bold text-gray-800">
           {isEditing ? 'Edit Recipe' : 'Create New Recipe'}
         </h2>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
-        <input
-          name="name"
-          value={recipe.name}
-          onChange={handleChange}
-          placeholder="Recipe Name"
-          className="px-4 py-2 border border-gray-300 rounded-md w-full"
-          required
-        />
-
-        <select
-          name="type"
-          value={recipe.type}
-          onChange={handleChange}
-          className="px-4 py-2 border border-gray-300 rounded-md w-full"
-          required
-        >
-          <option value="">Select Recipe Type</option>
-          {RECIPE_TYPES.map(type => (
-            <option key={type} value={type}>{type}</option>
-          ))}
-        </select>
-
-        <div className="flex items-center gap-2">
-          <input
-            name="portions"
-            type="number"
-            value={recipe.portions}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <motion.div whileFocus="focus">
+          <label className="block text-sm font-medium text-gray-700 mb-1">Recipe Name</label>
+          <motion.input
+            name="name"
+            value={recipe.name}
             onChange={handleChange}
-            placeholder="Portions"
-            className="px-4 py-2 border border-gray-300 rounded-md w-full"
+            placeholder="e.g. Chicken Alfredo Pasta"
+            className="px-4 py-3 border border-gray-300 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-red-500"
             required
+            variants={inputVariants}
           />
-          <span className="whitespace-nowrap text-sm text-gray-500">Base: {recipe.basePortions}</span>
-        </div>
+        </motion.div>
 
-        <input
-          name="yieldWeight"
-          type="number"
-          value={Number(totalWeight).toFixed(2)}
-          readOnly
-          placeholder="Total Weight (auto)"
-          className="px-4 py-2 border border-gray-300 bg-gray-100 rounded-md w-full"
-        />
+        <motion.div whileFocus="focus">
+          <label className="block text-sm font-medium text-gray-700 mb-1">Recipe Type</label>
+          <motion.select
+            name="type"
+            value={recipe.type}
+            onChange={handleChange}
+            className="px-4 py-3 border border-gray-300 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-red-500"
+            required
+            variants={inputVariants}
+          >
+            <option value="">Select Recipe Type</option>
+            {RECIPE_TYPES.map(type => (
+              <option key={type} value={type}>{type}</option>
+            ))}
+          </motion.select>
+        </motion.div>
+
+        <motion.div whileFocus="focus">
+          <label className="block text-sm font-medium text-gray-700 mb-1">Portions</label>
+          <div className="flex items-center gap-2">
+            <motion.input
+              name="portions"
+              type="number"
+              value={recipe.portions}
+              onChange={handleChange}
+              placeholder="Portions"
+              className="px-4 py-3 border border-gray-300 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-red-500"
+              required
+              variants={inputVariants}
+            />
+            <span className="whitespace-nowrap text-sm text-gray-500">Base: {recipe.basePortions}</span>
+          </div>
+        </motion.div>
+
+        <motion.div whileFocus="focus">
+          <label className="block text-sm font-medium text-gray-700 mb-1">Total Weight (g)</label>
+          <motion.input
+            name="yieldWeight"
+            type="number"
+            value={Number(totalWeight).toFixed(2)}
+            readOnly
+            className="px-4 py-3 border border-gray-300 bg-gray-50 rounded-lg w-full"
+            variants={inputVariants}
+          />
+        </motion.div>
       </div>
 
-      {/* Scaling Controls (preview within form while creating/editing) */}
-      <div className="grid grid-cols-3 gap-4 mb-5 p-4 bg-blue-50 rounded-lg">
+      {/* Scaling Controls */}
+      <motion.div 
+        className="grid grid-cols-3 gap-4 mb-8 p-5 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-100"
+        whileHover={{ scale: 1.005 }}
+      >
         <div className="col-span-2">
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
             Scale Recipe For Client Count
           </label>
-          <input
+          <motion.input
             type="number"
             value={clientCount}
             onChange={(e) => setClientCount(e.target.value)}
             placeholder="Number of Clients"
-            className="px-4 py-2 border border-gray-300 rounded-md w-full"
+            className="px-4 py-3 border border-gray-300 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+            whileFocus={{ boxShadow: "0 0 0 2px rgba(59, 130, 246, 0.5)" }}
           />
         </div>
-        <button
+        <motion.button
           type="button"
           onClick={handleScale}
-          className="flex items-center justify-center gap-2 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 mt-6"
+          className="flex items-center justify-center gap-2 bg-blue-600 text-white px-4 py-3 rounded-lg hover:bg-blue-700 mt-7 transition-colors"
+          whileHover={{ scale: 1.03 }}
+          whileTap={{ scale: 0.98 }}
         >
           <FaCalculator /> Scale
-        </button>
-      </div>
+        </motion.button>
+      </motion.div>
 
       {/* Ingredients */}
-      <div className="mb-4">
-        <h3 className="text-lg font-semibold mb-2">Ingredients</h3>
-        {recipe.ingredients.map((item, index) => (
-          <div key={index} className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-3">
-            <select
-              value={item.ingredientId}
-              onChange={(e) => handleIngredientChange(index, 'ingredientId', e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-md"
-              required
-              disabled={recipe.isLocked && isEditing}
-            >
-              <option value="">Select Ingredient</option>
-              {ingredientsList.map((ing) => (
-                <option key={ing._id} value={ing._id}>
-                  {ing.name} ({ing.originalUnit})
-                </option>
-              ))}
-            </select>
+      <div className="mb-8">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-lg font-semibold">Ingredients</h3>
+          <motion.button
+            type="button"
+            onClick={addIngredient}
+            className="flex items-center gap-2 text-sm bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            disabled={recipe.isLocked && isEditing}
+          >
+            <FaPlus /> Add Ingredient
+          </motion.button>
+        </div>
 
-            <input
-              type="number"
-              step="0.01"
-              value={item.quantity}
-              onChange={(e) => handleIngredientChange(index, 'quantity', e.target.value)}
-              placeholder="Quantity"
-              className="px-3 py-2 border border-gray-300 rounded-md"
-              required
-              disabled={recipe.isLocked && isEditing}
-            />
+        <div className="space-y-4">
+          <AnimatePresence>
+            {recipe.ingredients.map((item, index) => (
+              <motion.div
+                key={index}
+                variants={ingredientItemVariants}
+                initial="hidden"
+                animate="visible"
+                exit="exit"
+                className="grid grid-cols-2 md:grid-cols-5 gap-4 p-4 bg-white rounded-lg border border-gray-200 shadow-sm"
+              >
+                <motion.select
+                  value={item.ingredientId}
+                  onChange={(e) => handleIngredientChange(index, 'ingredientId', e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
+                  required
+                  disabled={recipe.isLocked && isEditing}
+                  whileFocus={{ boxShadow: "0 0 0 2px rgba(59, 130, 246, 0.5)" }}
+                >
+                  <option value="">Select Ingredient</option>
+                  {ingredientsList.map((ing) => (
+                    <option key={ing._id} value={ing._id}>
+                      {ing.name} ({ing.originalUnit})
+                    </option>
+                  ))}
+                </motion.select>
 
-            <input
-              type="number"
-              step="0.01"
-              value={item.baseQuantity || ''}
-              readOnly
-              placeholder="Base Qty (auto)"
-              className="px-3 py-2 border border-gray-300 bg-gray-100 rounded-md"
-            />
+                <motion.input
+                  type="number"
+                  step="0.01"
+                  value={item.quantity}
+                  onChange={(e) => handleIngredientChange(index, 'quantity', e.target.value)}
+                  placeholder="Quantity"
+                  className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
+                  required
+                  disabled={recipe.isLocked && isEditing}
+                  whileFocus={{ boxShadow: "0 0 0 2px rgba(59, 130, 246, 0.5)" }}
+                />
 
-            <span className="flex items-center text-sm text-gray-500">
-              {ingredientsList.find(i => i._id === item.ingredientId)?.originalUnit || ''}
-            </span>
+                <motion.input
+                  type="number"
+                  step="0.01"
+                  value={item.baseQuantity || ''}
+                  readOnly
+                  placeholder="Base Qty (auto)"
+                  className="px-3 py-2 border border-gray-300 bg-gray-50 rounded-md"
+                />
 
-            <button
-              type="button"
-              onClick={() => removeIngredient(index)}
-              className="text-red-600 text-sm"
-              disabled={recipe.isLocked && isEditing}
-            >
-              Remove
-            </button>
-          </div>
-        ))}
+                <span className="flex items-center text-sm text-gray-500">
+                  {ingredientsList.find(i => i._id === item.ingredientId)?.originalUnit || ''}
+                </span>
 
-        <button
-          type="button"
-          onClick={addIngredient}
-          className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 mb-5"
-          disabled={recipe.isLocked && isEditing}
-        >
-          <FaPlus /> Add Ingredient
-        </button>
+                <motion.button
+                  type="button"
+                  onClick={() => removeIngredient(index)}
+                  className="flex items-center justify-center gap-1 text-red-600 hover:text-red-800 text-sm"
+                  disabled={recipe.isLocked && isEditing}
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                >
+                  <FaTrash size={14} /> Remove
+                </motion.button>
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        </div>
       </div>
 
       {/* Recipe Summary */}
-      <div className="mb-4 p-4 bg-gray-50 rounded-lg">
-        <h3 className="text-lg font-semibold mb-2">Recipe Summary</h3>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <p className="text-sm">
-              <span className="font-medium">Total Weight:</span> {Number(totalWeight).toFixed(2)}g
+      <motion.div 
+        className="mb-8 p-5 bg-gradient-to-r from-red-50 to-orange-50 rounded-xl border border-red-100"
+        whileHover={{ scale: 1.005 }}
+      >
+        <h3 className="text-lg font-semibold mb-3">Recipe Summary</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <p className="text-sm flex justify-between">
+              <span className="font-medium text-gray-700">Total Weight:</span>
+              <span className="font-semibold">{Number(totalWeight).toFixed(2)}g</span>
             </p>
-            <p className="text-sm">
-              <span className="font-medium">Portions:</span> {recipe.portions}
+            <p className="text-sm flex justify-between">
+              <span className="font-medium text-gray-700">Portions:</span>
+              <span className="font-semibold">{recipe.portions}</span>
             </p>
           </div>
-          <div>
-            <p className="text-sm">
-              <span className="font-medium">Total Cost:</span> ${totalCost.toFixed(2)}
+          <div className="space-y-2">
+            <p className="text-sm flex justify-between">
+              <span className="font-medium text-gray-700">Total Cost:</span>
+              <span className="font-semibold">${totalCost.toFixed(2)}</span>
             </p>
-            <p className="text-sm">
-              <span className="font-medium">Total KCAL:</span> {totalKcal.toFixed(2)}
+            <p className="text-sm flex justify-between">
+              <span className="font-medium text-gray-700">Total KCAL:</span>
+              <span className="font-semibold">{totalKcal.toFixed(2)}</span>
             </p>
           </div>
         </div>
-      </div>
+      </motion.div>
 
       {/* Procedure */}
-      <div className="mb-4">
-        <label className="block text-sm font-medium text-gray-700 mb-1">Procedure</label>
-        <textarea
+      <div className="mb-8">
+        <label className="block text-sm font-medium text-gray-700 mb-2">Procedure</label>
+        <motion.textarea
           name="procedure"
           value={recipe.procedure}
           onChange={handleChange}
-          placeholder="Describe the preparation steps..."
-          className="w-full px-4 py-2 border border-gray-300 rounded-md"
-          rows={4}
+          placeholder="Describe the preparation steps in detail..."
+          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+          rows={6}
           disabled={recipe.isLocked && isEditing}
+          whileFocus={{ boxShadow: "0 0 0 2px rgba(59, 130, 246, 0.5)" }}
         />
       </div>
 
       {/* Image Upload */}
-      <div className="mb-6">
-        <label className="text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-          <FaImage /> Dish Image
+      <div className="mb-8">
+        <label className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+          <FaImage className="text-blue-500" /> Dish Image
         </label>
         {recipe.imageUrl && (
-          <img
-            src={`${import.meta.env.VITE_API_IMG_URL || ''}${recipe.imageUrl}`}
-            alt="Dish"
-            className="h-32 w-full object-cover rounded mb-2"
-          />
+          <motion.div 
+            className="mb-3 overflow-hidden rounded-lg border border-gray-200"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+          >
+            <img
+              src={`${import.meta.env.VITE_API_IMG_URL || ''}${recipe.imageUrl}`}
+              alt="Dish"
+              className="h-48 w-full object-cover"
+            />
+          </motion.div>
         )}
-        <input
-          type="file"
-          name="image"
-          accept="image/*"
-          onChange={handleChange}
-          className="block text-sm text-gray-600"
-          disabled={recipe.isLocked && isEditing}
-        />
+        <motion.label 
+          className={`flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-lg cursor-pointer ${recipe.image ? 'border-green-500 bg-green-50' : 'border-gray-300 hover:border-gray-400'}`}
+          whileHover={{ scale: 1.01 }}
+          whileTap={{ scale: 0.99 }}
+        >
+          <FaImage className="text-gray-400 text-2xl mb-2" />
+          <p className="text-sm text-gray-600">
+            {recipe.image ? recipe.image.name : 'Click to upload or drag and drop'}
+          </p>
+          <input
+            type="file"
+            name="image"
+            accept="image/*"
+            onChange={handleChange}
+            className="hidden"
+            disabled={recipe.isLocked && isEditing}
+          />
+        </motion.label>
       </div>
 
       {/* Lock */}
-      <div className="mb-6 flex items-center gap-2">
-        <input
-          type="checkbox"
-          id="isLocked"
-          name="isLocked"
-          checked={recipe.isLocked}
-          onChange={handleChange}
-        />
+      <div className="mb-8 flex items-center gap-3 p-4 bg-gray-50 rounded-lg">
+        <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+          <input
+            type="checkbox"
+            id="isLocked"
+            name="isLocked"
+            checked={recipe.isLocked}
+            onChange={handleChange}
+            className="h-5 w-5 text-red-600 rounded focus:ring-red-500"
+          />
+        </motion.div>
         <label htmlFor="isLocked" className="text-sm font-medium text-gray-700 flex items-center gap-2">
-          <FaLock /> Lock this recipe (cannot be modified afterwards)
+          <FaLock className="text-gray-500" /> Lock this recipe (cannot be modified afterwards)
         </label>
       </div>
 
       <div className="text-right">
-        <button
+        <motion.button
           type="submit"
-          className="bg-red-600 text-white px-6 py-2 rounded hover:bg-red-700"
+          className="bg-gradient-to-r from-red-600 to-orange-600 text-white px-8 py-3 rounded-lg hover:from-red-700 hover:to-orange-700 font-medium shadow-md"
+          whileHover={{ scale: 1.03, boxShadow: "0 4px 12px rgba(239, 68, 68, 0.3)" }}
+          whileTap={{ scale: 0.98 }}
+          disabled={isSubmitting}
         >
-          {isEditing ? 'Update Recipe' : 'Save Recipe'}
-        </button>
+          {isSubmitting ? (
+            <span className="flex items-center justify-center gap-2">
+              <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Processing...
+            </span>
+          ) : (
+            isEditing ? 'Update Recipe' : 'Save Recipe'
+          )}
+        </motion.button>
       </div>
-    </form>
+    </motion.form>
   );
 }

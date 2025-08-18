@@ -13,6 +13,8 @@ export const PlanningProvider = ({ children }) => {
   const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const role = (localStorage.getItem('role') || 'user').toLowerCase();
+
   useEffect(() => {
     fetchPlans();
   }, []);
@@ -31,6 +33,7 @@ export const PlanningProvider = ({ children }) => {
   const addPlan = async (newPlan) => {
     try {
       const res = await createPlan(newPlan);
+      // API returns { ...plan, _generatedRequisitions }
       setPlans((prev) => [...prev, res.data]);
     } catch (err) {
       console.error('Failed to create plan:', err);
@@ -64,7 +67,8 @@ export const PlanningProvider = ({ children }) => {
         addPlan,
         editPlan,
         removePlan,
-        loading
+        loading,
+        role
       }}
     >
       {children}
