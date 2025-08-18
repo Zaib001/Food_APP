@@ -9,6 +9,7 @@ const SignUp = () => {
     name: '', 
     email: '', 
     password: '', 
+    role: 'user'   // default role
   });
 
   const handleChange = e => 
@@ -59,7 +60,18 @@ const SignUp = () => {
             className="w-full p-2 border rounded" 
           />
           
-         
+          {/* Role Selection */}
+          <select
+            name="role"
+            value={formData.role}
+            onChange={handleChange}
+            required
+            className="w-full p-2 border rounded bg-white"
+          >
+            <option value="user">User</option>
+            <option value="manager">Manager</option>
+            <option value="admin">Admin</option>
+          </select>
 
           <button 
             type="submit" 
