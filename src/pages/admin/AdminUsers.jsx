@@ -1,5 +1,5 @@
-// src/pages/admin/AdminUsers.jsx (Polished UI)
-import React, { useEffect, useMemo, useState } from 'react';
+// src/pages/admin/AdminUsers.jsx
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import Toolbar from '../../components/admin/Toolbar';
 import Modal from '../../components/admin/Modal';
 import ConfirmModal from '../../components/admin/ConfirmModal';
@@ -13,9 +13,17 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { FaUserShield, FaSearch, FaPlus, FaUsers, FaUserTie } from 'react-icons/fa';
 
-const emptyForm = { name: '', email: '', password: '', role: 'user' };
+// Optional: replace with your real auth hook/context
+function useAuth() {
+  // Expect something like: { user: { role: 'superadmin' | 'admin' | ... , company: 'Acme' } }
+  // Replace with your actual implementation
+  return { user: window.__CURRENT_USER__ || { role: 'admin', company: '' } };
+}
+
+const emptyForm = { name: '', email: '', password: '', role: 'user', company: '' };
 
 export default function AdminUsers() {
+  const { user: currentUser } = useAuth();
   const [q, setQ] = useState('');
   const [page, setPage] = useState(1);
   const [limit] = useState(10);
@@ -27,41 +35,59 @@ export default function AdminUsers() {
   const [editingId, setEditingId] = useState(null);
   const [confirm, setConfirm] = useState({ open: false, id: null });
 
-  const load = async () => {
+  const load = useCallback(async () => {
     try {
       setLoading(true);
       const res = await adminListUsers({ search: q, page, limit });
-      setData(res.data);
+      setData(res.data || { items: [], total: 0, pages: 0 });
     } catch (e) {
       console.error(e);
+      setData({ items: [], total: 0, pages: 0 });
     } finally {
       setLoading(false);
     }
-  };
+  }, [q, page, limit]);
 
   useEffect(() => {
     load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q, page, limit]);
+  }, [load]);
 
   const onCreate = () => {
     setEditingId(null);
-    setForm(emptyForm);
+    setForm({
+      ...emptyForm,
+      company: (currentUser?.company || ''),
+    });
     setModalOpen(true);
   };
 
   const onEdit = (u) => {
     setEditingId(u.id || u._id);
-    setForm({ name: u.name, email: u.email, password: '', role: u.role });
+    setForm({
+      name: u.name || '',
+      email: u.email || '',
+      password: '',
+      role: u.role || 'user',
+      company: u.company || '',
+    });
     setModalOpen(true);
   };
 
   const onSave = async () => {
     try {
+      const payload = {
+        name: form.name,
+        email: form.email,
+        role: form.role,
+        company: form.company,
+      };
+      if (form.password) payload.password = form.password;
+
       if (editingId) {
-        await adminUpdateUser(editingId, { ...form, password: form.password || undefined });
+        await adminUpdateUser(editingId, payload);
       } else {
-        await adminCreateUser(form);
+        // Require password on create
+        await adminCreateUser({ ...payload, password: form.password });
       }
       setModalOpen(false);
       load();
@@ -89,8 +115,14 @@ export default function AdminUsers() {
     }
   };
 
-  const pages = useMemo(() => Array.from({ length: data.pages || 0 }, (_, i) => i + 1), [data.pages]);
-  const pageAdminCount = useMemo(() => (data.items || []).filter((u) => u.role === 'admin').length, [data.items]);
+  const pages = useMemo(
+    () => Array.from({ length: data.pages || 0 }, (_, i) => i + 1),
+    [data.pages]
+  );
+  const pageAdminCount = useMemo(
+    () => (data.items || []).filter((u) => u.role === 'admin').length,
+    [data.items]
+  );
 
   // UI helpers
   const section = { hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0, transition: { duration: 0.35 } } };
@@ -114,7 +146,7 @@ export default function AdminUsers() {
               </div>
               <div>
                 <h1 className="text-2xl font-bold">Admin – Users</h1>
-                <p className="text-white/80 text-sm">Manage accounts, roles, and access. Search, edit, and paginate with ease.</p>
+                <p className="text-white/80 text-sm">Manage accounts, roles, companies, and access. Search, edit, and paginate with ease.</p>
               </div>
             </div>
 
@@ -128,7 +160,6 @@ export default function AdminUsers() {
           </div>
 
           <div className="mt-4">
-            {/* Keep Toolbar API, but upgrade inner controls */}
             <Toolbar
               left={
                 <div className="relative">
@@ -166,6 +197,7 @@ export default function AdminUsers() {
               <tr>
                 <th className="p-3 text-left">Name</th>
                 <th className="p-3 text-left">Email</th>
+                <th className="p-3 text-left">Company</th>
                 <th className="p-3 text-left">Role</th>
                 <th className="p-3 text-right">Actions</th>
               </tr>
@@ -174,7 +206,7 @@ export default function AdminUsers() {
               <AnimatePresence initial={false}>
                 {loading && (
                   <tr>
-                    <td colSpan={4} className="p-4">
+                    <td colSpan={5} className="p-4">
                       <div className="animate-pulse h-10 bg-gray-100 rounded" />
                     </td>
                   </tr>
@@ -182,7 +214,7 @@ export default function AdminUsers() {
 
                 {!loading && data.items?.length === 0 && (
                   <tr>
-                    <td colSpan={4} className="p-6 text-center text-gray-400">No users</td>
+                    <td colSpan={5} className="p-6 text-center text-gray-400">No users</td>
                   </tr>
                 )}
 
@@ -197,6 +229,7 @@ export default function AdminUsers() {
                   >
                     <td className="p-3 whitespace-nowrap">{u.name}</td>
                     <td className="p-3 whitespace-nowrap">{u.email}</td>
+                    <td className="p-3 whitespace-nowrap">{u.company || '—'}</td>
                     <td className="p-3 whitespace-nowrap">
                       <select
                         value={u.role}
@@ -204,12 +237,25 @@ export default function AdminUsers() {
                         className="px-2 py-1 border rounded-lg focus:border-rose-400 focus:ring-4 focus:ring-rose-200/50 outline-none"
                       >
                         <option value="user">user</option>
+                        <option value="base">base</option>
+                        <option value="planner">planner</option>
                         <option value="admin">admin</option>
                       </select>
+
                     </td>
                     <td className="p-3 text-right space-x-2 whitespace-nowrap">
-                      <button onClick={() => onEdit(u)} className="px-3 py-1 rounded-lg border hover:bg-gray-50">Edit</button>
-                      <button onClick={() => setConfirm({ open: true, id: u._id })} className="px-3 py-1 rounded-lg border text-rose-600 hover:bg-rose-50">Delete</button>
+                      <button
+                        onClick={() => onEdit(u)}
+                        className="px-3 py-1 rounded-lg border hover:bg-gray-50"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => setConfirm({ open: true, id: u._id })}
+                        className="px-3 py-1 rounded-lg border text-rose-600 hover:bg-rose-50"
+                      >
+                        Delete
+                      </button>
                     </td>
                   </motion.tr>
                 ))}
@@ -244,7 +290,9 @@ export default function AdminUsers() {
         footer={
           <div className="flex gap-2">
             <button onClick={() => setModalOpen(false)} className="px-4 py-2 rounded-xl border hover:bg-gray-50">Cancel</button>
-            <button onClick={onSave} className="px-4 py-2 rounded-xl bg-rose-600 text-white hover:bg-rose-700 shadow">{editingId ? 'Save Changes' : 'Create User'}</button>
+            <button onClick={onSave} className="px-4 py-2 rounded-xl bg-rose-600 text-white hover:bg-rose-700 shadow">
+              {editingId ? 'Save Changes' : 'Create User'}
+            </button>
           </div>
         }
       >
@@ -265,6 +313,18 @@ export default function AdminUsers() {
               className="w-full px-3 py-2 border rounded-xl focus:border-rose-400 focus:ring-4 focus:ring-rose-200/50 outline-none"
             />
           </div>
+
+          <div>
+            <label className="text-sm text-gray-600">Company</label>
+            <input
+              value={form.company}
+              onChange={(e) => setForm({ ...form, company: e.target.value })}
+              className="w-full px-3 py-2 border rounded-xl focus:border-rose-400 focus:ring-4 focus:ring-rose-200/50 outline-none"
+              placeholder="e.g., Acme Corp"
+            />
+          </div>
+
+
           <div>
             <label className="text-sm text-gray-600">Role</label>
             <select
@@ -273,16 +333,20 @@ export default function AdminUsers() {
               className="w-full px-3 py-2 border rounded-xl focus:border-rose-400 focus:ring-4 focus:ring-rose-200/50 outline-none"
             >
               <option value="user">user</option>
+              <option value="base">base</option>
+              <option value="planner">planner</option>
               <option value="admin">admin</option>
             </select>
           </div>
-          <div>
+
+          <div className="md:col-span-2">
             <label className="text-sm text-gray-600">{editingId ? 'New Password (optional)' : 'Password'}</label>
             <input
               type="password"
               value={form.password}
               onChange={(e) => setForm({ ...form, password: e.target.value })}
               className="w-full px-3 py-2 border rounded-xl focus:border-rose-400 focus:ring-4 focus:ring-rose-200/50 outline-none"
+              placeholder={editingId ? 'Leave blank to keep current password' : 'Minimum 6 characters'}
             />
           </div>
         </div>

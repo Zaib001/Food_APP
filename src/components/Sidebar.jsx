@@ -47,7 +47,6 @@ export default function Sidebar({ isOpen, onClose, onToggle }) {
     try { return JSON.parse(localStorage.getItem('user')); } catch { return null; }
   }, []);
   const role = user?.role || 'user';
-
   // Base (everyone)
   const generalLinks = [
     { to: '/dashboard', label: t('sidebar.dashboard') || 'Dashboard', icon: <FaHome /> },

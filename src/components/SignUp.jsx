@@ -9,7 +9,7 @@ const SignUp = () => {
     name: '', 
     email: '', 
     password: '', 
-    role: 'user'   // default role
+    role: 'user'   
   });
 
   const handleChange = e => 
@@ -69,8 +69,10 @@ const SignUp = () => {
             className="w-full p-2 border rounded bg-white"
           >
             <option value="user">User</option>
-            <option value="manager">Manager</option>
+            <option value="base">Base</option>
             <option value="admin">Admin</option>
+            <option value="superadmin">SuperAdmin</option>
+            <option value="planner">Planner</option>
           </select>
 
           <button 
