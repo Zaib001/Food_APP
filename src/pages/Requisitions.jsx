@@ -1,4 +1,3 @@
-// src/pages/Requisitions.jsx (Polished UI)
 import React, { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import RequisitionList from "../features/requisitions/RequisitionList";
@@ -9,6 +8,7 @@ import { useRequisitions } from "../contexts/RequisitionContext";
 import { useMenus } from "../contexts/MenuContext";
 import { exportRequisitionsToCSV, exportPerSupplierCSVs } from "../utils/exportRequisitions";
 import { FaFileCsv, FaFileExport, FaChartBar, FaPlus, FaFilter, FaTruck, FaListUl } from "react-icons/fa";
+import { approveRequisition as approveReqAPI, bulkApproveRequisitions as bulkApproveAPI } from "../api/requisitions";
 
 export default function Requisitions() {
   const { requisitions, fetchRequisitions, addRequisition, updateOne, deleteOne, loading } =
@@ -101,6 +101,20 @@ export default function Requisitions() {
     return { total, pending, approved, suppliers };
   }, [requisitions]);
 
+  // ---- NEW: Approvals wiring for header-level generated requisitions ----
+  const handleApproveHeader = async (id) => {
+    await approveReqAPI(id);
+    // Refresh whatever list shows approved headers — if you store them in MenuContext:
+    // Option A: call a context refresher if available
+    // Option B: trigger menus to regenerate/fetch persistent requisitions list
+    // Here we'll rely on whatever consumes generatedRequisitions to refresh after action
+  };
+
+  const handleBulkApproveHeaders = async (filter = {}) => {
+    await bulkApproveAPI(filter); // e.g. { date, base } if you pass those
+    // Same refresh note as above
+  };
+
   return (
     <div className="p-6 relative overflow-hidden">
       {/* Decorative blobs */}
@@ -189,13 +203,19 @@ export default function Requisitions() {
         ))}
       </motion.div>
 
-      {/* Auto-Generated Requisitions */}
-      <AnimatePresence>{generatedRequisitions?.length > 0 && (
-        <motion.div key="auto" variants={section} initial="hidden" animate="show" className="mt-10">
-          <h2 className="text-lg font-bold mb-3 text-gray-800">Auto-Generated Requisitions from Menus</h2>
-          <GeneratedRequisitionTable requisitions={generatedRequisitions} />
-        </motion.div>
-      )}</AnimatePresence>
+      {/* Auto-Generated Requisitions (header-level supported) */}
+      <AnimatePresence>
+        {generatedRequisitions?.length > 0 && (
+          <motion.div key="auto" variants={section} initial="hidden" animate="show" className="mt-10">
+            <h2 className="text-lg font-bold mb-3 text-gray-800">Auto-Generated Requisitions from Menus</h2>
+            <GeneratedRequisitionTable
+              requisitions={generatedRequisitions}
+              onApprove={handleApproveHeader}
+              onBulkApprove={handleBulkApproveHeaders}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Chart */}
       <motion.div variants={section} initial="hidden" animate="show" className="mt-6 rounded-2xl border border-gray-100 bg-white/80 shadow-sm p-4">
