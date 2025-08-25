@@ -1,54 +1,140 @@
-
-// --- InventoryTable.jsx (drop-in replacement) ---
+// src/features/inventory/InventoryTable.jsx
 import React from "react";
 import { FaEdit, FaTrash } from "react-icons/fa";
 import { motion, AnimatePresence } from "framer-motion";
 
 export default function InventoryTable({ data = [], onEdit, onDelete }) {
+  console.log("inventory" , data)
   const getStatus = (qty) => {
     const n = Number(qty);
-    if (!Number.isFinite(n) || n <= 0) return { label: "Out of Stock", color: "bg-rose-50 text-rose-700 border-rose-200" };
-    if (n < 5) return { label: "Low Stock", color: "bg-amber-50 text-amber-700 border-amber-200" };
+    if (!Number.isFinite(n) || n <= 0)
+      return { label: "Out of Stock", color: "bg-rose-50 text-rose-700 border-rose-200" };
+    if (n < 5)
+      return { label: "Low Stock", color: "bg-amber-50 text-amber-700 border-amber-200" };
     return { label: "In Stock", color: "bg-emerald-50 text-emerald-700 border-emerald-200" };
   };
 
-  const rowVariants = { hidden: { opacity: 0, y: 6 }, show: { opacity: 1, y: 0, transition: { duration: 0.25 } } };
+  const formatMoney = (val, currency = "USD") => {
+    const num = Number(val || 0);
+    try {
+      return new Intl.NumberFormat(undefined, { style: "currency", currency }).format(num);
+    } catch {
+      // fallback if currency code is invalid/not supported on the user's locale
+      return `${num.toFixed(2)} ${currency}`;
+    }
+  };
+
+  const rowVariants = {
+    hidden: { opacity: 0, y: 6 },
+    show: { opacity: 1, y: 0, transition: { duration: 0.25 } },
+  };
+
+  const headers = [
+    "Ingredient",
+    "Supplier",
+    "Qty",
+    "Unit",
+    "Purchase (per unit)",
+    "Total Cost",
+    "Date",
+    "Status",
+    "Actions",
+  ];
 
   return (
-    <motion.div className="bg-white/80 p-4 rounded-2xl shadow border border-gray-100" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
+    <motion.div
+      className="bg-white/80 p-4 rounded-2xl shadow border border-gray-100"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35 }}
+    >
       <h2 className="text-lg font-semibold text-gray-800 mb-4">Inventory Overview</h2>
+
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-gray-50 text-gray-700 sticky top-0 z-10">
             <tr className="border-y">
-              {['Ingredient','Supplier','Qty','Unit','Date','Status','Actions'].map((h) => (
-                <th key={h} className={`p-3 text-left ${h==='Actions' ? 'text-center' : ''}`}>{h}</th>
+              {headers.map((h) => (
+                <th
+                  key={h}
+                  className={`p-3 text-left ${h === "Actions" ? "text-center" : ""}`}
+                >
+                  {h}
+                </th>
               ))}
             </tr>
           </thead>
+
           <tbody>
             <AnimatePresence initial={false}>
               {data.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="text-center p-6 text-gray-500">No inventory records found.</td>
+                  <td colSpan={headers.length} className="text-center p-6 text-gray-500">
+                    No inventory records found.
+                  </td>
                 </tr>
               ) : (
                 data.map((item, index) => {
                   const status = getStatus(item.quantity);
+                  const currency = item.currency || "USD";
+                  const purchase = Number(item.purchasePrice ?? 0);
+                  const total =
+                    Number(item.costTotal ?? (Number(item.quantity || 0) * purchase));
+
                   return (
-                    <motion.tr key={item?._id || index} variants={rowVariants} initial="hidden" animate="show" exit={{ opacity: 0 }} className={`border-b transition ${index % 2 ? 'bg-gray-50' : 'bg-white'} hover:bg-rose-50`}>
-                      <td className="p-3 whitespace-nowrap">{item.ingredientName || item.ingredientId}</td>
+                    <motion.tr
+                      key={item?._id || index}
+                      variants={rowVariants}
+                      initial="hidden"
+                      animate="show"
+                      exit={{ opacity: 0 }}
+                      className={`border-b transition ${
+                        index % 2 ? "bg-gray-50" : "bg-white"
+                      } hover:bg-rose-50`}
+                    >
+                      <td className="p-3 whitespace-nowrap">
+                        {item.ingredientName || item.ingredientId}
+                      </td>
                       <td className="p-3 whitespace-nowrap">{item.supplier}</td>
                       <td className="p-3 whitespace-nowrap font-medium">{item.quantity}</td>
                       <td className="p-3 whitespace-nowrap">{item.unit}</td>
-                      <td className="p-3 whitespace-nowrap">{item.date}</td>
+
+                      {/* Purchase price per unit */}
                       <td className="p-3 whitespace-nowrap">
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-semibold border ${status.color}`}>{status.label}</span>
+                        {formatMoney(purchase, currency)}
                       </td>
+
+                      {/* Total cost = qty * purchasePrice (or costTotal if provided by backend) */}
+                      <td className="p-3 whitespace-nowrap font-medium">
+                        {formatMoney(total, currency)}
+                      </td>
+
+                      <td className="p-3 whitespace-nowrap">{item.date}</td>
+
+                      <td className="p-3 whitespace-nowrap">
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-xs font-semibold border ${status.color}`}
+                        >
+                          {status.label}
+                        </span>
+                      </td>
+
                       <td className="p-3 whitespace-nowrap text-center">
                         <div className="inline-flex items-center gap-2">
-                          <button onClick={() => onEdit?.(index)} className="p-2 rounded-lg text-sky-600 hover:text-sky-800 hover:bg-sky-50" title="Edit"><FaEdit /></button>
-                          <button onClick={() => onDelete?.(index)} className="p-2 rounded-lg text-rose-600 hover:text-rose-800 hover:bg-rose-50" title="Delete"><FaTrash /></button>
+                          <button
+                            onClick={() => onEdit?.(index)}
+                            className="p-2 rounded-lg text-sky-600 hover:text-sky-800 hover:bg-sky-50"
+                            title="Edit"
+                          >
+                            <FaEdit />
+                          </button>
+                          <button
+                            onClick={() => onDelete?.(index)}
+                            className="p-2 rounded-lg text-rose-600 hover:text-rose-800 hover:bg-rose-50"
+                            title="Delete"
+                          >
+                            <FaTrash />
+                          </button>
                         </div>
                       </td>
                     </motion.tr>
@@ -68,21 +154,66 @@ export default function InventoryTable({ data = [], onEdit, onDelete }) {
           ) : (
             data.map((item, index) => {
               const status = getStatus(item.quantity);
+              const currency = item.currency || "USD";
+              const purchase = Number(item.purchasePrice ?? 0);
+              const total =
+                Number(item.costTotal ?? (Number(item.quantity || 0) * purchase));
+
               return (
-                <motion.div key={`card-${item?._id || index}`} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="rounded-xl border border-gray-100 bg-white p-3 shadow-sm">
+                <motion.div
+                  key={`card-${item?._id || index}`}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  className="rounded-xl border border-gray-100 bg-white p-3 shadow-sm"
+                >
                   <div className="flex items-center justify-between">
-                    <div className="font-semibold text-gray-900">{item.ingredientName || item.ingredientId}</div>
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-semibold border ${status.color}`}>{status.label}</span>
+                    <div className="font-semibold text-gray-900">
+                      {item.ingredientName || item.ingredientId}
+                    </div>
+                    <span
+                      className={`px-2 py-0.5 rounded-full text-xs font-semibold border ${status.color}`}
+                    >
+                      {status.label}
+                    </span>
                   </div>
+
                   <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-gray-600">
-                    <div><span className="text-gray-500">Supplier:</span> {item.supplier}</div>
-                    <div><span className="text-gray-500">Qty:</span> {item.quantity}</div>
-                    <div><span className="text-gray-500">Unit:</span> {item.unit}</div>
-                    <div><span className="text-gray-500">Date:</span> {item.date}</div>
+                    <div>
+                      <span className="text-gray-500">Supplier:</span> {item.supplier}
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Qty:</span> {item.quantity}
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Unit:</span> {item.unit}
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Date:</span> {item.date}
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Price:</span>{" "}
+                      {formatMoney(purchase, currency)}
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Total:</span>{" "}
+                      <strong>{formatMoney(total, currency)}</strong>
+                    </div>
                   </div>
+
                   <div className="mt-3 flex items-center justify-end gap-2">
-                    <button onClick={() => onEdit?.(index)} className="px-3 py-1.5 rounded-lg text-sky-600 hover:bg-sky-50 text-xs font-medium">Edit</button>
-                    <button onClick={() => onDelete?.(index)} className="px-3 py-1.5 rounded-lg text-rose-600 hover:bg-rose-50 text-xs font-medium">Delete</button>
+                    <button
+                      onClick={() => onEdit?.(index)}
+                      className="px-3 py-1.5 rounded-lg text-sky-600 hover:bg-sky-50 text-xs font-medium"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => onDelete?.(index)}
+                      className="px-3 py-1.5 rounded-lg text-rose-600 hover:bg-rose-50 text-xs font-medium"
+                    >
+                      Delete
+                    </button>
                   </div>
                 </motion.div>
               );

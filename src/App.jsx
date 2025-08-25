@@ -4,7 +4,16 @@ import DashboardLayout from './layouts/DashboardLayout';
 import PrivateRoute from './components/PrivateRoute';
 import AdminRoute from './components/AdminRoute';
 import FoodLoader from './components/ui/FoodLoader';
+import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
 
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend
+);
 // Lazy-load pages for real loading states
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Ingredients = lazy(() => import('./pages/Ingredients'));

@@ -5,14 +5,22 @@ import { motion } from "framer-motion";
 import { FaWarehouse, FaSave } from "react-icons/fa";
 
 export default function InventoryForm({ ingredients = [], initialData = {}, onSave, suppliers = [] }) {
-  const [form, setForm] = useState({
-    ingredientId: "",
-    supplier: "",
-    quantity: "",
-    unit: "",
-    date: "",
-    notes: "",
-  });
+ const [form, setForm] = useState({
+  ingredientId: "",
+  supplier: "",
+  quantity: "",
+  unit: "",
+  date: "",
+  notes: "",
+  purchasePrice: "",   // NEW
+  currency: "USD",     // optional
+});
+
+const totalCost = useMemo(() => {
+  const q = Number(form.quantity) || 0;
+  const p = Number(form.purchasePrice) || 0;
+  return q * p;
+}, [form.quantity, form.purchasePrice]);
 
   const ingredientOptions = useMemo(
     () =>
@@ -32,11 +40,21 @@ export default function InventoryForm({ ingredients = [], initialData = {}, onSa
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
   const handleSelect = (field, selected) => setForm({ ...form, [field]: selected?.value || "" });
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    onSave?.(form);
-    setForm({ ingredientId: "", supplier: "", quantity: "", unit: "", date: "", notes: "" });
-  };
+ const handleSubmit = (e) => {
+  e.preventDefault();
+  onSave?.(form);
+  setForm({
+    ingredientId: "",
+    supplier: "",
+    quantity: "",
+    unit: "",
+    purchasePrice: "",   
+    currency: "USD",   
+    date: "",
+    notes: ""
+  });
+};
+
 
   // react-select styling + portal to avoid clipping behind modals/overflow
   const selectStyles = {
@@ -128,7 +146,42 @@ export default function InventoryForm({ ingredients = [], initialData = {}, onSa
             required
           />
         </div>
+<div>
+  <label className="block text-sm text-gray-700 mb-1">Purchase Price (per {form.unit || 'unit'})</label>
+  <input
+    type="number"
+    step="0.01"
+    name="purchasePrice"
+    value={form.purchasePrice}
+    onChange={handleChange}
+    placeholder="e.g. 2.50"
+    className="border rounded-xl px-3 py-2 w-full focus:border-rose-400 focus:ring-4 focus:ring-rose-200/50 outline-none"
+  />
+</div>
 
+{/* Currency (optional) */}
+<div>
+  <label className="block text-sm text-gray-700 mb-1">Currency</label>
+  <input
+    type="text"
+    name="currency"
+    readOnly
+    value={form.currency}
+    onChange={handleChange}
+    className="border rounded-xl px-3 py-2 w-full bg-gray-50 text-gray-700"
+  />
+</div>
+
+{/* Read-only total */}
+<div >
+  <label className="block text-sm text-gray-700 mb-1">Total Cost</label>
+  <input
+    type="text"
+    readOnly
+    value={Number.isFinite(totalCost) ? totalCost.toFixed(2) : '0.00'}
+    className="border rounded-xl px-3 py-2 w-full bg-gray-50 text-gray-700"
+  />
+</div>
         {/* Unit */}
         <div>
           <label className="block text-sm text-gray-700 mb-1">Unit</label>

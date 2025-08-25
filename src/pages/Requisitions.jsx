@@ -7,11 +7,24 @@ import GeneratedRequisitionTable from "../features/requisitions/GeneratedRequisi
 import { useRequisitions } from "../contexts/RequisitionContext";
 import { useMenus } from "../contexts/MenuContext";
 import { exportRequisitionsToCSV, exportPerSupplierCSVs } from "../utils/exportRequisitions";
-import { FaFileCsv, FaFileExport, FaChartBar, FaPlus, FaFilter, FaTruck, FaListUl } from "react-icons/fa";
-import { approveRequisition as approveReqAPI, bulkApproveRequisitions as bulkApproveAPI } from "../api/requisitions";
+import {
+  FaFileCsv,
+  FaFileExport,
+  FaChartBar,
+  FaPlus,
+  FaFilter,
+  FaTruck,
+  FaListUl,
+} from "react-icons/fa";
+import {
+  approveRequisition as approveReqAPI,
+  bulkApproveRequisitions as bulkApproveAPI,
+  completeRequisition as completeReqAPI,
+} from "../api/requisitions";
+import CompletionModal from "../components/CompletionModal";
 
 export default function Requisitions() {
-  const { requisitions, fetchRequisitions, addRequisition, updateOne, deleteOne, loading } =
+  const { requisitions, fetchRequisitions, addRequisition, updateOne, deleteOne } =
     useRequisitions();
   const { generatedRequisitions } = useMenus();
 
@@ -20,7 +33,11 @@ export default function Requisitions() {
   const [filter, setFilter] = useState("all");
   const [supplierFilter, setSupplierFilter] = useState("all");
 
-  // helper: get current user name from JWT or localStorage
+  // Completion modal
+  const [completionModalOpen, setCompletionModalOpen] = useState(false);
+  const [selectedRequisition, setSelectedRequisition] = useState(null);
+
+  // helper: current user name
   const getCurrentUserName = () => {
     try {
       const storedName = localStorage.getItem("userName") || localStorage.getItem("name");
@@ -30,7 +47,13 @@ export default function Requisitions() {
       const parts = token.split(".");
       if (parts.length !== 3) return "Manual Entry";
       const payload = JSON.parse(atob(parts[1] || ""));
-      return payload?.name || payload?.username || payload?.user?.name || payload?.email || "Manual Entry";
+      return (
+        payload?.name ||
+        payload?.username ||
+        payload?.user?.name ||
+        payload?.email ||
+        "Manual Entry"
+      );
     } catch {
       return "Manual Entry";
     }
@@ -38,6 +61,28 @@ export default function Requisitions() {
 
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
 
+  // open completion flow from anywhere (table button or generated table)
+  const handleComplete = (requisition) => {
+    setSelectedRequisition(requisition);
+    setCompletionModalOpen(true);
+  };
+
+  // completion submit
+  const handleCompletionSubmit = async (requisitionId, completionData) => {
+    try {
+      await completeReqAPI(requisitionId, completionData);
+      await fetchRequisitions({ status: filter, supplier: supplierFilter });
+      setCompletionModalOpen(false);
+      setSelectedRequisition(null);
+      // toast/snackbar if you have one; fallback:
+      alert("Requisition completed successfully!");
+    } catch (error) {
+      console.error("Failed to complete requisition:", error);
+      alert("Failed to complete requisition. Please try again.");
+    }
+  };
+
+  // basic CRUD
   const handleAdd = async (newItem) => {
     const payload = {
       status: "pending",
@@ -48,9 +93,22 @@ export default function Requisitions() {
     await addRequisition(payload);
   };
 
+  // IMPORTANT: if status is set to "completed" in the edit modal, open completion modal instead
   const handleUpdate = async (updated) => {
-    const id = requisitions[editIndex]._id;
-    await updateOne(id, updated);
+    const curr = requisitions[editIndex];
+    if (!curr) return;
+
+    // If user selects Completed in the edit modal, route to completion modal
+    if (String(updated?.status).toLowerCase() === "completed") {
+      // merge edited fields with current doc so the completion modal has context
+      const merged = { ...curr, ...updated };
+      handleComplete(merged);
+      setModalOpen(false);
+      return;
+    }
+
+    // otherwise normal update
+    await updateOne(curr._id, updated);
   };
 
   const handleDelete = async (index) => {
@@ -60,7 +118,7 @@ export default function Requisitions() {
 
   useEffect(() => {
     fetchRequisitions({ status: filter, supplier: supplierFilter });
-  }, [filter, supplierFilter]);
+  }, [filter, supplierFilter, fetchRequisitions]);
 
   const filteredData = requisitions;
   const uniqueSuppliers = useMemo(
@@ -69,7 +127,8 @@ export default function Requisitions() {
   );
 
   const grouped = filteredData.reduce((acc, r) => {
-    acc[r.supplier || "Unknown"] = (acc[r.supplier || "Unknown"] || 0) + Number(r.quantity || 0);
+    acc[r.supplier || "Unknown"] =
+      (acc[r.supplier || "Unknown"] || 0) + Number(r.quantity || 0);
     return acc;
   }, {});
 
@@ -87,10 +146,15 @@ export default function Requisitions() {
         };
 
   // UI helpers
-  const section = { hidden: { opacity: 0, y: 14 }, show: { opacity: 1, y: 0, transition: { duration: 0.35 } } };
+  const section = {
+    hidden: { opacity: 0, y: 14 },
+    show: { opacity: 1, y: 0, transition: { duration: 0.35 } },
+  };
   const chip = (active) =>
     `px-3 py-1.5 rounded-xl border text-sm transition-all ${
-      active ? "bg-rose-600 text-white border-rose-600 shadow" : "bg-white text-gray-700 border-gray-200 hover:border-rose-300"
+      active
+        ? "bg-rose-600 text-white border-rose-600 shadow"
+        : "bg-white text-gray-700 border-gray-200 hover:border-rose-300"
     }`;
 
   const headerStats = useMemo(() => {
@@ -101,18 +165,15 @@ export default function Requisitions() {
     return { total, pending, approved, suppliers };
   }, [requisitions]);
 
-  // ---- NEW: Approvals wiring for header-level generated requisitions ----
+  // Approvals for headers (generated)
   const handleApproveHeader = async (id) => {
     await approveReqAPI(id);
-    // Refresh whatever list shows approved headers — if you store them in MenuContext:
-    // Option A: call a context refresher if available
-    // Option B: trigger menus to regenerate/fetch persistent requisitions list
-    // Here we'll rely on whatever consumes generatedRequisitions to refresh after action
+    await fetchRequisitions({ status: filter, supplier: supplierFilter });
   };
 
-  const handleBulkApproveHeaders = async (filter = {}) => {
-    await bulkApproveAPI(filter); // e.g. { date, base } if you pass those
-    // Same refresh note as above
+  const handleBulkApproveHeaders = async (filterObj = {}) => {
+    await bulkApproveAPI(filterObj);
+    await fetchRequisitions({ status: filter, supplier: supplierFilter });
   };
 
   return (
@@ -122,7 +183,11 @@ export default function Requisitions() {
       <div className="pointer-events-none absolute -bottom-24 -left-24 h-60 w-60 rounded-full bg-gradient-to-br from-amber-100 to-rose-100 blur-3xl opacity-70" />
 
       {/* Header */}
-      <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="relative overflow-hidden rounded-2xl border border-rose-100 shadow bg-white">
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="relative overflow-hidden rounded-2xl border border-rose-100 shadow bg-white"
+      >
         <div className="absolute inset-0 bg-gradient-to-r from-rose-600 via-rose-500 to-pink-500 opacity-95" />
         <div className="absolute inset-0 backdrop-blur-[1px]" />
         <div className="relative p-6 text-white">
@@ -133,23 +198,58 @@ export default function Requisitions() {
               </div>
               <div>
                 <h1 className="text-2xl font-bold">Requisitions</h1>
-                <p className="text-white/80 text-sm">Manage requests, filter by status/supplier, export, and visualize totals.</p>
+                <p className="text-white/80 text-sm">
+                  Manage requests, filter by status/supplier, export, and visualize totals.
+                </p>
               </div>
             </div>
             {/* Stats */}
             <div className="grid grid-cols-4 gap-3">
-              <div className="rounded-xl bg-white/15 border border-white/20 p-3"><div className="text-[11px] text-white/80">Total</div><div className="text-lg font-extrabold">{headerStats.total}</div></div>
-              <div className="rounded-xl bg-white/15 border border-white/20 p-3"><div className="text-[11px] text-white/80">Pending</div><div className="text-lg font-extrabold">{headerStats.pending}</div></div>
-              <div className="rounded-xl bg-white/15 border border-white/20 p-3"><div className="text-[11px] text-white/80">Approved</div><div className="text-lg font-extrabold">{headerStats.approved}</div></div>
-              <div className="rounded-xl bg-white/15 border border-white/20 p-3"><div className="text-[11px] text-white/80">Suppliers</div><div className="text-lg font-extrabold">{headerStats.suppliers}</div></div>
+              <div className="rounded-xl bg-white/15 border border-white/20 p-3">
+                <div className="text-[11px] text-white/80">Total</div>
+                <div className="text-lg font-extrabold">{headerStats.total}</div>
+              </div>
+              <div className="rounded-xl bg-white/15 border border-white/20 p-3">
+                <div className="text-[11px] text-white/80">Pending</div>
+                <div className="text-lg font-extrabold">{headerStats.pending}</div>
+              </div>
+              <div className="rounded-xl bg-white/15 border border-white/20 p-3">
+                <div className="text-[11px] text-white/80">Approved</div>
+                <div className="text-lg font-extrabold">{headerStats.approved}</div>
+              </div>
+              <div className="rounded-xl bg-white/15 border border-white/20 p-3">
+                <div className="text-[11px] text-white/80">Suppliers</div>
+                <div className="text-lg font-extrabold">{headerStats.suppliers}</div>
+              </div>
             </div>
           </div>
 
           {/* Actions */}
           <div className="mt-4 flex flex-wrap justify-end gap-3">
-            <motion.button whileTap={{ scale: 0.98 }} onClick={() => exportRequisitionsToCSV(filteredData)} className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-white text-sm font-semibold shadow hover:bg-emerald-700 focus:outline-none focus:ring-4 focus:ring-emerald-200/60"><FaFileCsv /> Export CSV</motion.button>
-            <motion.button whileTap={{ scale: 0.98 }} onClick={() => exportPerSupplierCSVs(filteredData)} className="inline-flex items-center gap-2 rounded-xl bg-teal-600 px-4 py-2 text-white text-sm font-semibold shadow hover:bg-teal-700 focus:outline-none focus:ring-4 focus:ring-teal-200/60"><FaFileExport /> Export per Supplier</motion.button>
-            <motion.button whileTap={{ scale: 0.98 }} onClick={() => { setEditIndex(null); setModalOpen(true); }} className="inline-flex items-center gap-2 rounded-xl bg-rose-600 px-4 py-2 text-white text-sm font-semibold shadow hover:bg-rose-700 focus:outline-none focus:ring-4 focus:ring-rose-200/60"><FaPlus /> New Requisition</motion.button>
+            <motion.button
+              whileTap={{ scale: 0.98 }}
+              onClick={() => exportRequisitionsToCSV(requisitions)}
+              className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-white text-sm font-semibold shadow hover:bg-emerald-700 focus:outline-none focus:ring-4 focus:ring-emerald-200/60"
+            >
+              <FaFileCsv /> Export CSV
+            </motion.button>
+            <motion.button
+              whileTap={{ scale: 0.98 }}
+              onClick={() => exportPerSupplierCSVs(requisitions)}
+              className="inline-flex items-center gap-2 rounded-xl bg-teal-600 px-4 py-2 text-white text-sm font-semibold shadow hover:bg-teal-700 focus:outline-none focus:ring-4 focus:ring-teal-200/60"
+            >
+              <FaFileExport /> Export per Supplier
+            </motion.button>
+            <motion.button
+              whileTap={{ scale: 0.98 }}
+              onClick={() => {
+                setEditIndex(null);
+                setModalOpen(true);
+              }}
+              className="inline-flex items-center gap-2 rounded-xl bg-rose-600 px-4 py-2 text-white text-sm font-semibold shadow hover:bg-rose-700 focus:outline-none focus:ring-4 focus:ring-rose-200/60"
+            >
+              <FaPlus /> New Requisition
+            </motion.button>
           </div>
         </div>
       </motion.div>
@@ -158,7 +258,10 @@ export default function Requisitions() {
       <motion.div variants={section} initial="hidden" animate="show" className="mt-5">
         <div className="rounded-2xl border bg-white/80 backdrop-blur shadow-sm p-4">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-            <div className="flex items-center gap-2 text-gray-700"><FaFilter /><span className="text-sm font-semibold">Filters</span></div>
+            <div className="flex items-center gap-2 text-gray-700">
+              <FaFilter />
+              <span className="text-sm font-semibold">Filters</span>
+            </div>
             <div className="flex flex-wrap gap-2">
               {["all", "pending", "approved", "completed"].map((f) => (
                 <button key={f} onClick={() => setFilter(f)} className={chip(filter === f)}>
@@ -168,7 +271,11 @@ export default function Requisitions() {
             </div>
             <div className="flex items-center gap-2">
               <FaTruck className="text-gray-400" />
-              <select onChange={(e) => setSupplierFilter(e.target.value)} value={supplierFilter} className="px-3 py-2 rounded-xl border border-gray-200 text-sm focus:border-rose-400 focus:ring-4 focus:ring-rose-200/50 outline-none">
+              <select
+                onChange={(e) => setSupplierFilter(e.target.value)}
+                value={supplierFilter}
+                className="px-3 py-2 rounded-xl border border-gray-200 text-sm focus:border-rose-400 focus:ring-4 focus:ring-rose-200/50 outline-none"
+              >
                 {uniqueSuppliers.map((s, i) => (
                   <option key={i} value={s}>
                     {s === "all" ? "All Suppliers" : s}
@@ -180,54 +287,80 @@ export default function Requisitions() {
         </div>
       </motion.div>
 
-      {/* Manual Requisition Table */}
+      {/* Manual Requisition Table (now supports Complete) */}
       <motion.div variants={section} initial="hidden" animate="show" className="mt-6">
         <RequisitionList
-          data={filteredData}
+          data={requisitions}
           onEdit={(i) => {
             setEditIndex(i);
             setModalOpen(true);
           }}
           onDelete={handleDelete}
+          onComplete={handleComplete} // 👈 NEW: Complete from manual table
         />
       </motion.div>
 
       {/* Summary Cards */}
-      <motion.div variants={section} initial="hidden" animate="show" className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <motion.div
+        variants={section}
+        initial="hidden"
+        animate="show"
+        className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+      >
         {Object.entries(grouped).map(([supplier, qty]) => (
-          <motion.div key={supplier} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="rounded-2xl border border-gray-100 bg-white/80 shadow-sm p-4">
+          <motion.div
+            key={supplier}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="rounded-2xl border border-gray-100 bg-white/80 shadow-sm p-4"
+          >
             <div className="text-sm text-gray-500">Supplier</div>
-            <div className="text-lg font-semibold text-gray-800 flex items-center gap-2"><FaTruck className="text-rose-600" /> {supplier || "Unknown"}</div>
-            <div className="mt-1 text-sm"><span className="text-gray-500">Total Qty:</span> <strong>{qty}</strong></div>
+            <div className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+              <FaTruck className="text-rose-600" /> {supplier || "Unknown"}
+            </div>
+            <div className="mt-1 text-sm">
+              <span className="text-gray-500">Total Qty:</span> <strong>{qty}</strong>
+            </div>
           </motion.div>
         ))}
       </motion.div>
 
-      {/* Auto-Generated Requisitions (header-level supported) */}
+      {/* Auto-Generated Requisitions (header-level) */}
       <AnimatePresence>
         {generatedRequisitions?.length > 0 && (
           <motion.div key="auto" variants={section} initial="hidden" animate="show" className="mt-10">
-            <h2 className="text-lg font-bold mb-3 text-gray-800">Auto-Generated Requisitions from Menus</h2>
+            <h2 className="text-lg font-bold mb-3 text-gray-800">
+              Auto-Generated Requisitions from Menus
+            </h2>
             <GeneratedRequisitionTable
               requisitions={generatedRequisitions}
               onApprove={handleApproveHeader}
               onBulkApprove={handleBulkApproveHeaders}
+              onComplete={handleComplete} // reuse same complete flow
             />
           </motion.div>
         )}
       </AnimatePresence>
 
       {/* Chart */}
-      <motion.div variants={section} initial="hidden" animate="show" className="mt-6 rounded-2xl border border-gray-100 bg-white/80 shadow-sm p-4">
-        <div className="flex items-center gap-2 text-gray-700 mb-2"><FaChartBar className="text-rose-600" /><h3 className="text-md font-semibold">Quantities by Supplier</h3></div>
-        <SupplierBarChart data={filteredData} />
+      <motion.div
+        variants={section}
+        initial="hidden"
+        animate="show"
+        className="mt-6 rounded-2xl border border-gray-100 bg-white/80 shadow-sm p-4"
+      >
+        <div className="flex items-center gap-2 text-gray-700 mb-2">
+          <FaChartBar className="text-rose-600" />
+          <h3 className="text-md font-semibold">Quantities by Supplier</h3>
+        </div>
+        <SupplierBarChart data={requisitions} />
       </motion.div>
 
       {/* Add/Edit Modal */}
       <EditModal
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
-        onSave={editIndex === null ? handleAdd : handleUpdate}
+        onSave={handleUpdate}
         initialValues={modalInitialValues}
         title={editIndex !== null ? "Edit Requisition" : "New Requisition"}
         fields={[
@@ -241,6 +374,7 @@ export default function Requisitions() {
             name: "status",
             label: "Status",
             type: "select",
+            // keep "Completed" here to trigger the completion modal when chosen:
             options: [
               { label: "Pending", value: "pending" },
               { label: "Approved", value: "approved" },
@@ -249,6 +383,17 @@ export default function Requisitions() {
           },
           { name: "base", label: "Base / Location" },
         ]}
+      />
+
+      {/* Completion Modal */}
+      <CompletionModal
+        isOpen={completionModalOpen}
+        onClose={() => {
+          setCompletionModalOpen(false);
+          setSelectedRequisition(null);
+        }}
+        requisition={selectedRequisition}
+        onComplete={handleCompletionSubmit}
       />
     </div>
   );

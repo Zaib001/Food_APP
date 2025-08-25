@@ -50,3 +50,13 @@ export const bulkApproveRequisitions = async (filter = {}) => {
 export const getRequisitionStats = async () => {
   return await axios.get(`${API_URL}/requisitions/stats`, { headers: headers() });
 };
+
+// Complete a requisition
+export const completeRequisition = async (id, data) => {
+  return await axios.put(`${API_URL}/requisitions/${id}/complete`, data, { headers: headers() });
+};
+
+// Complete a specific item
+export const completeRequisitionItem = async (requisitionId, itemId, data) => {
+  return await axios.put(`${API_URL}/requisitions/${requisitionId}/item/${itemId}/complete`, data, { headers: headers() });
+};

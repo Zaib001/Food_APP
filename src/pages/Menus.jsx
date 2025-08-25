@@ -180,7 +180,7 @@ export default function Menus() {
         whileInView="show"
         viewport={{ once: true, amount: 0.2 }}
         variants={section}
-        className="mt-6"
+        className="mt-6 text-gray-900"
       >
         <MenuCalendar menus={filteredMenus} ingredientsMap={ingredientsMap} />
       </motion.div>

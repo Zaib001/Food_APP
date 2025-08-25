@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
-  FaHome, FaCarrot, FaBook, FaCalendarAlt, FaClipboardList,
+  FaHome, FaLeaf, FaBook, FaCalendarAlt, FaClipboardList,
   FaBoxes, FaCogs, FaChartBar, FaSignOutAlt, FaUsers, FaChevronLeft
 } from 'react-icons/fa';
 import { HiMenu } from 'react-icons/hi';
@@ -53,7 +53,7 @@ export default function Sidebar({ isOpen, onClose, onToggle }) {
   ];
 
   const operationsLinks = [
-    { to: '/dashboard/ingredients', label: t('sidebar.ingredients') || 'Ingredients', icon: <FaCarrot /> },
+    { to: '/dashboard/ingredients', label: t('sidebar.ingredients') || 'Ingredients', icon: <FaLeaf /> },
     { to: '/dashboard/recipes',     label: t('sidebar.recipes') || 'Recipes',         icon: <FaBook /> },
     { to: '/dashboard/menus',       label: t('sidebar.menus') || 'Menus',             icon: <FaCalendarAlt /> },
     { to: '/dashboard/planning',    label: t('sidebar.planning') || 'Planning',       icon: <FaClipboardList /> },

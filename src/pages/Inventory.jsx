@@ -9,18 +9,11 @@ import { useInventory } from "../contexts/InventoryContext";
 import { useIngredients } from "../contexts/IngredientContext";
 
 export default function Inventory() {
-  const { inventory, addInventory, editInventory, removeInventory, downloadCSV } = useInventory();
+  const { inventory, addInventory, editInventory, deleteOne, downloadCSV } = useInventory();
   const { ingredients } = useIngredients();
   const [editIndex, setEditIndex] = useState(null);
 
-  // quick stats
-  const stats = useMemo(() => {
-    const totalEntries = inventory.length;
-    const totalQty = inventory.reduce((s, r) => s + Number(r.quantity || 0), 0);
-    const low = inventory.filter((r) => Number(r.quantity) > 0 && Number(r.quantity) < 5).length;
-    const out = inventory.filter((r) => Number(r.quantity) <= 0).length;
-    return { totalEntries, totalQty, low, out };
-  }, [inventory]);
+ 
 
   const handleSave = async (item) => {
     const ingredient = ingredients.find((i) => i._id === item.ingredientId);
@@ -38,9 +31,16 @@ export default function Inventory() {
   const handleEdit = (index) => setEditIndex(index);
   const handleDelete = async (index) => {
     const id = inventory[index]._id;
-    await removeInventory(id);
+    await deleteOne(id);
   };
-
+const stats = useMemo(() => {
+  const totalEntries = inventory.length;
+  const totalQty = inventory.reduce((s, r) => s + Number(r.quantity || 0), 0);
+  const low = inventory.filter((r) => Number(r.quantity) > 0 && Number(r.quantity) < 5).length;
+  const out = inventory.filter((r) => Number(r.quantity) <= 0).length;
+  const totalValue = inventory.reduce((s, r) => s + Number(r.costTotal || ((r.quantity||0)*(r.purchasePrice||0))), 0);
+  return { totalEntries, totalQty, low, out, totalValue };
+}, [inventory]);
   const section = { hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0, transition: { duration: 0.35 } } };
 
   return (
@@ -66,11 +66,13 @@ export default function Inventory() {
             </div>
 
             {/* Quick Stats */}
-            <div className="grid grid-cols-4 gap-3">
+            <div className="grid grid-cols-5 gap-3">
               <div className="rounded-xl bg-white/15 border border-white/20 p-3 text-center"><div className="text-[11px] text-white/80">Entries</div><div className="text-lg font-extrabold">{stats.totalEntries}</div></div>
               <div className="rounded-xl bg-white/15 border border-white/20 p-3 text-center"><div className="text-[11px] text-white/80">Total Qty</div><div className="text-lg font-extrabold">{stats.totalQty}</div></div>
               <div className="rounded-xl bg-white/15 border border-white/20 p-3 text-center"><div className="text-[11px] text-white/80">Low</div><div className="text-lg font-extrabold">{stats.low}</div></div>
               <div className="rounded-xl bg-white/15 border border-white/20 p-3 text-center"><div className="text-[11px] text-white/80">Out</div><div className="text-lg font-extrabold">{stats.out}</div></div>
+              <div className="rounded-xl bg-white/15 border border-white/20 p-3 text-center"><div className="text-[11px] text-white/80">Total Value</div><div className="text-lg font-extrabold">{stats.totalValue.toFixed(2)}</div></div>
+              
             </div>
           </div>
 
