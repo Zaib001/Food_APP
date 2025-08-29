@@ -36,6 +36,9 @@ export const InventoryProvider = ({ children }) => {
     setInventory(prev => prev.map(i => i._id === id ? res.data : i));
   };
 
+  // Alias for readability in pages
+  const editInventory = updateOne;
+
   const deleteOne = async (id) => {
     await deleteInventory(id);
     setInventory(prev => prev.filter(i => i._id !== id));
@@ -51,16 +54,16 @@ export const InventoryProvider = ({ children }) => {
     setLowStock(res.data.items);
   };
 
-
-
   const downloadCSV = async () => {
     const res = await exportInventoryCSV();
     const url = window.URL.createObjectURL(new Blob([res.data]));
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', 'inventory_summary.csv');
+    link.setAttribute('download', 'inventory.csv');
     document.body.appendChild(link);
     link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
   };
 
   useEffect(() => {
@@ -71,15 +74,16 @@ export const InventoryProvider = ({ children }) => {
     <InventoryContext.Provider
       value={{
         inventory,
+        fetchInventory,
         addInventory,
         updateOne,
+        editInventory,
         deleteOne,
         grouped,
         fetchGrouped,
         lowStock,
         fetchLowStock,
         downloadCSV,
-        
       }}
     >
       {children}

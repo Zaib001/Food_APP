@@ -35,6 +35,7 @@ const [generatedRequisitions, setGeneratedRequisitions] = useState(() => {
   const addMenu = async (menuData) => {
     try {
       const res = await apiCreateMenu(menuData);
+      console.log('Menu created:', res.data);
       setMenus(prev => [...prev, res.data]);
     } catch (err) {
       console.error('Failed to create menu:', err);

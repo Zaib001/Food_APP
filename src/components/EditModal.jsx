@@ -1,255 +1,258 @@
 // src/components/EditModal.jsx
-import React, { useEffect, useRef, useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
-import { createPortal } from 'react-dom';
+import React, { useEffect, useState, useRef } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 
-/**
- * EditModal
- * Props:
- * - isOpen: boolean
- * - onClose: () => void
- * - onSave: (form) => Promise|void
- * - title?: string
- * - fields?: Array<{ name, label, type?, options? }>
- * - initialValues?: object
- * - onValidate?: (form) => ({ [field]: string } | null)  // return errors map or null
- * - busy?: boolean                                      // externally control busy state (optional)
- * - saveLabel?: string
- * - cancelLabel?: string
- */
 export default function EditModal({
   isOpen,
   onClose,
   onSave,
-  title = 'Edit',
-  fields = [],
+  title = "Edit",
   initialValues = {},
-  onValidate,
-  busy: busyProp,
-  saveLabel = 'Save',
-  cancelLabel = 'Cancel',
+  fields = [],
+  saveLabel = "Save",
+  cancelLabel = "Cancel",
+  ingredientMap = {},
 }) {
-  const [form, setForm] = useState(initialValues);
-  const [errors, setErrors] = useState({});
-  const [busyLocal, setBusyLocal] = useState(false);
+  const [form, setForm] = useState({});
+  const initialValuesRef = useRef(initialValues);
+  const isOpenRef = useRef(isOpen);
 
-  const busy = busyProp ?? busyLocal;
-
-  const modalRef = useRef(null);
-  const lastFocusedRef = useRef(null);
-
-  // Sync initial values when opened
+  // Update ref when initialValues changes
   useEffect(() => {
-    if (isOpen) {
-      setForm(initialValues || {});
-      setErrors({});
-    }
-  }, [initialValues, isOpen]);
+    initialValuesRef.current = initialValues;
+  }, [initialValues]);
 
-  // Lock body scroll + focus management
+  // Update ref when isOpen changes
   useEffect(() => {
-    if (!isOpen) return;
-
-    lastFocusedRef.current = document.activeElement;
-
-    const { overflow } = document.body.style;
-    document.body.style.overflow = 'hidden';
-
-    const onKey = (e) => {
-      if (e.key === 'Escape') onClose?.();
-      if (e.key === 'Tab') trapFocus(e);
-    };
-    window.addEventListener('keydown', onKey);
-
-    // focus the first focusable in modal
-    requestAnimationFrame(() => {
-      const el = modalRef.current;
-      if (!el) return;
-      const focusables = getFocusables(el);
-      if (focusables.length) focusables[0].focus();
-    });
-
-    return () => {
-      document.body.style.overflow = overflow;
-      window.removeEventListener('keydown', onKey);
-      // restore focus to trigger
-      lastFocusedRef.current?.focus?.();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    isOpenRef.current = isOpen;
   }, [isOpen]);
 
-  const getFocusables = (root) =>
-    root.querySelectorAll(
-      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-    );
-
-  const trapFocus = (e) => {
-    const el = modalRef.current;
-    if (!el) return;
-    const focusables = getFocusables(el);
-    if (!focusables.length) return;
-    const first = focusables[0];
-    const last = focusables[focusables.length - 1];
-    if (e.shiftKey && document.activeElement === first) {
-      e.preventDefault();
-      last.focus();
-    } else if (!e.shiftKey && document.activeElement === last) {
-      e.preventDefault();
-      first.focus();
+  // Initialize form only when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      console.log("EditModal useEffect - initializing form", initialValuesRef.current);
+      setForm({ ...initialValuesRef.current });
     }
+  }, [isOpen]); // Only depend on isOpen
+
+  const setField = (name, value) => {
+    console.log("setField called", { name, value, currentForm: form });
+    
+    const nextForm = { ...form, [name]: value };
+    
+    // If ingredient is selected and exists in our map, auto-fill fields
+    if (name === "ingredientId" && value && ingredientMap[value]) {
+      console.log("Ingredient selected, attempting auto-fill", { value, ingredient: ingredientMap[value] });
+      const ingredient = ingredientMap[value];
+      
+      // Only auto-fill if fields are empty or haven't been modified
+      if (!nextForm.item || nextForm.item.trim() === "") {
+        nextForm.item = ingredient.name || "";
+        console.log("Auto-filled item field", nextForm.item);
+      }
+      
+      if (!nextForm.unit || nextForm.unit.trim() === "") {
+        nextForm.unit = ingredient.originalUnit || ingredient.unit || "";
+        console.log("Auto-filled unit field", nextForm.unit);
+      }
+      
+      if ((!nextForm.supplier || nextForm.supplier.trim() === "") && ingredient.supplier) {
+        nextForm.supplier = ingredient.supplier;
+        console.log("Auto-filled supplier field", nextForm.supplier);
+      }
+    }
+    
+    console.log("Setting form to", nextForm);
+    setForm(nextForm);
   };
 
-  const handleChange = (name, value) => {
-    setForm((prev) => ({ ...prev, [name]: value }));
-    if (errors[name]) {
-      setErrors((prev) => {
-        const next = { ...prev };
-        delete next[name];
-        return next;
+  const handleSubmit = (e) => {
+    e?.preventDefault?.();
+    console.log("Form submitted", form);
+    const normalized = { ...form };
+    fields.forEach((f) => {
+      if (f.type === "number" && normalized[f.name] !== undefined && normalized[f.name] !== "") {
+        const n = Number(normalized[f.name]);
+        normalized[f.name] = Number.isNaN(n) ? normalized[f.name] : n;
+      }
+    });
+    
+    // Check if we're adding a new item or editing existing
+    if (form._id) {
+      // Editing existing - extract the item fields for the items array
+      const itemData = {
+        item: form.item,
+        quantity: form.quantity,
+        unit: form.unit,
+        supplier: form.supplier,
+        ingredientId: form.ingredientId,
+      };
+      
+      onSave?.({
+        ...form,
+        items: [itemData]
+      });
+    } else {
+      // Adding new - create the full payload
+      onSave?.({
+        ...normalized,
+        items: [{
+          item: normalized.item,
+          quantity: normalized.quantity,
+          unit: normalized.unit,
+          supplier: normalized.supplier,
+          ingredientId: normalized.ingredientId,
+        }]
       });
     }
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
-    // Validation
-    if (typeof onValidate === 'function') {
-      const errs = onValidate(form) || {};
-      setErrors(errs);
-      if (Object.keys(errs).length > 0) return;
-    }
-
-    try {
-      if (busyProp === undefined) setBusyLocal(true);
-      const maybePromise = onSave?.(form);
-      if (maybePromise && typeof maybePromise.then === 'function') {
-        await maybePromise;
-      }
-      onClose?.();
-    } catch (err) {
-      // Keep modal open, surface error in console
-      // (You can add a toast system here if you use one)
-      console.error('[EditModal] onSave failed:', err);
-    } finally {
-      if (busyProp === undefined) setBusyLocal(false);
-    }
+    
+    onClose?.();
   };
 
   const renderField = (f) => {
-    const { name, label, type = 'text', options = [] } = f;
-    const value = form?.[name] ?? '';
-    const error = errors?.[name];
+    const value = form[f.name] ?? "";
+    const common =
+      "w-full px-3 py-2 rounded-xl border border-gray-300 focus:border-rose-400 focus:ring-4 focus:ring-rose-200/50 outline-none";
 
-    if (type === 'select') {
+    if (f.type === "select") {
       return (
-        <div key={name} className="flex flex-col gap-1">
-          <label className="text-sm text-gray-700">{label}</label>
+        <label key={f.name} className="text-sm">
+          <span className="mb-1 block font-medium text-gray-700">{f.label}</span>
           <select
             value={value}
-            onChange={(e) => handleChange(name, e.target.value)}
-            className={`border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-rose-300 ${
-              error ? 'border-rose-400' : 'border-gray-300'
-            }`}
+            onChange={(e) => {
+              console.log(`Select field ${f.name} changed to:`, e.target.value);
+              setField(f.name, e.target.value);
+            }}
+            className={common}
           >
-            <option value="" disabled>
-              Select {label}
-            </option>
-            {options.map((opt, i) => (
-              <option key={`${name}-${i}`} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
+            {(f.options || []).map((opt, i) =>
+              typeof opt === "string" ? (
+                <option key={`${f.name}-${i}`} value={opt}>
+                  {opt}
+                </option>
+              ) : (
+                <option key={`${f.name}-${opt.value}-${i}`} value={opt.value}>
+                  {opt.label}
+                </option>
+              )
+            )}
           </select>
-          {error && <p className="text-xs text-rose-600">{error}</p>}
-        </div>
+          {f.help && <p className="text-xs text-gray-500 mt-1">{f.help}</p>}
+        </label>
+      );
+    }
+
+    if (f.type === "textarea") {
+      return (
+        <label key={f.name} className="text-sm">
+          <span className="mb-1 block font-medium text-gray-700">{f.label}</span>
+          <textarea
+            rows={f.rows || 4}
+            value={value}
+            onChange={(e) => {
+              console.log(`Textarea field ${f.name} changed to:`, e.target.value);
+              setField(f.name, e.target.value);
+            }}
+            className={common}
+            placeholder={f.placeholder}
+          />
+          {f.help && <p className="text-xs text-gray-500 mt-1">{f.help}</p>}
+        </label>
       );
     }
 
     return (
-      <div key={name} className="flex flex-col gap-1">
-        <label className="text-sm text-gray-700">{label}</label>
+      <label key={f.name} className="text-sm">
+        <span className="mb-1 block font-medium text-gray-700">{f.label}</span>
         <input
-          type={type}
+          type={f.type || "text"}
           value={value}
-          onChange={(e) =>
-            handleChange(name, type === 'number' ? Number(e.target.value) : e.target.value)
-          }
-          className={`border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-rose-300 ${
-            error ? 'border-rose-400' : 'border-gray-300'
-          }`}
+          onChange={(e) => {
+            console.log(`Input field ${f.name} changed to:`, e.target.value);
+            setField(f.name, e.target.value);
+          }}
+          className={common}
+          placeholder={f.placeholder}
+          step={f.type === "number" ? (f.step ?? "any") : undefined}
         />
-        {error && <p className="text-xs text-rose-600">{error}</p>}
-      </div>
+        {f.help && <p className="text-xs text-gray-500 mt-1">{f.help}</p>}
+      </label>
     );
   };
 
-  if (!isOpen) return null;
+  console.log("EditModal rendering with form state:", form);
 
-  const content = (
+  return (
     <AnimatePresence>
-      <motion.div
-        className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        onClick={busy ? undefined : onClose} // disable backdrop close while busy
-      >
-        {/* Backdrop */}
-        <div className="absolute inset-0 bg-black/40" />
-
-        {/* Panel */}
+      {isOpen && (
         <motion.div
-          ref={modalRef}
-          role="dialog"
-          aria-modal="true"
-          aria-label={title}
-          className="relative bg-white rounded-xl w-full max-w-xl max-h-[85vh] overflow-auto p-5 shadow-2xl border border-rose-100"
-          initial={{ y: 30, opacity: 0, scale: 0.98 }}
-          animate={{ y: 0, opacity: 1, scale: 1 }}
-          exit={{ y: 30, opacity: 0, scale: 0.98 }}
-          transition={{ type: 'spring', stiffness: 260, damping: 24 }}
-          onClick={(e) => e.stopPropagation()}
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          onClick={() => {
+            console.log("Modal background clicked, closing");
+            onClose();
+          }}
         >
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold">{title}</h3>
-            <button
-              onClick={onClose}
-              disabled={busy}
-              className="px-2 py-1 rounded text-gray-500 hover:text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-rose-300 disabled:opacity-50"
-            >
-              Close
-            </button>
-          </div>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {fields.map(renderField)}
+          <motion.div
+            className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl border border-rose-100 overflow-hidden"
+            initial={{ y: 16, opacity: 0.98 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 16, opacity: 0.98 }}
+            transition={{ duration: 0.15 }}
+            onClick={(e) => {
+              console.log("Modal content clicked, preventing close");
+              e.stopPropagation();
+            }}
+            role="dialog"
+            aria-modal="true"
+            aria-label={title}
+          >
+            <div className="px-5 py-4 border-b bg-gradient-to-r from-rose-600 via-rose-500 to-pink-500 text-white">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-bold">{title}</h3>
+                <button
+                  type="button"
+                  onClick={() => {
+                    console.log("Close button clicked");
+                    onClose();
+                  }}
+                  className="px-3 py-1.5 rounded-lg bg-white/15 hover:bg-white/25"
+                >
+                  Close
+                </button>
+              </div>
             </div>
 
-            <div className="flex justify-end gap-2 pt-2">
-              <button
-                type="button"
-                onClick={onClose}
-                disabled={busy}
-                className="px-4 py-2 rounded border hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-rose-300 disabled:opacity-50"
-              >
-                {cancelLabel}
-              </button>
-              <button
-                type="submit"
-                disabled={busy}
-                className="px-4 py-2 rounded bg-rose-600 text-white hover:bg-rose-700 focus:outline-none focus:ring-2 focus:ring-rose-300 disabled:opacity-50"
-              >
-                {busy ? 'Saving…' : saveLabel}
-              </button>
-            </div>
-          </form>
+            <form onSubmit={handleSubmit} className="p-5 space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {fields.map(renderField)}
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    console.log("Cancel button clicked");
+                    onClose();
+                  }}
+                  className="px-4 py-2 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-50"
+                >
+                  {cancelLabel}
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded-xl bg-rose-600 text-white font-semibold shadow hover:bg-rose-700"
+                >
+                  {saveLabel}
+                </button>
+              </div>
+            </form>
+          </motion.div>
         </motion.div>
-      </motion.div>
+      )}
     </AnimatePresence>
   );
-
-  // Use a portal so the modal is not constrained by parent stacking contexts/transforms.
-  return createPortal(content, document.body);
 }

@@ -1,5 +1,5 @@
 // src/components/MenuCalendar.jsx
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   FaUtensils,
   FaMapMarkerAlt,
@@ -10,12 +10,95 @@ import {
   FaTimes,
 } from "react-icons/fa";
 import { motion, AnimatePresence } from "framer-motion";
+import { useRecipes } from "../../contexts/RecipeContext";
 
+// ---------- Helpers: kcal & cost ----------
+const calculateRecipeKcal = (recipe, ingredientsMap) => {
+  if (!recipe?.ingredients) return 0;
+  return recipe.ingredients.reduce((sum, ing) => {
+    const meta = ingredientsMap[ing.ingredientId] || {};
+    const kcal = parseFloat(meta.kcal || 0);
+    const qty = parseFloat(ing.quantity || 0);
+    return sum + (qty * kcal) / 1000;
+  }, 0);
+};
+
+const calculateRecipeCost = (recipe, ingredientsMap) => {
+  if (!recipe?.ingredients) return 0;
+  return recipe.ingredients.reduce((sum, ing) => {
+    const meta = ingredientsMap[ing.ingredientId] || {};
+    const price = parseFloat(meta.pricePerKg || 0);
+    const yieldPct = parseFloat(meta.yield || 100);
+    const qty = parseFloat(ing.quantity || 0);
+    const adjustedQty = yieldPct === 0 ? 0 : qty / (yieldPct / 100);
+    return sum + adjustedQty * price;
+  }, 0);
+};
+
+// ---------- Precompute recipe aggregates ----------
+const usePrecomputedRecipeData = (recipes, ingredientsMap) => {
+  return useMemo(() => {
+    const data = new Map();
+    recipes.forEach((recipe) => {
+      if (recipe && recipe._id) {
+        data.set(recipe._id, {
+          kcal: calculateRecipeKcal(recipe, ingredientsMap),
+          cost: calculateRecipeCost(recipe, ingredientsMap),
+          name: recipe.name || "Unnamed",
+          type: recipe.type || "",
+          portions: recipe.portions || 0,
+          yieldWeight: recipe.yieldWeight || 0,
+          ingredients: recipe.ingredients || [],
+        });
+      }
+    });
+    return data;
+  }, [recipes, ingredientsMap]);
+};
+
+// ==================================================
 export default function MenuCalendar({ menus = [], ingredientsMap = {} }) {
+  const { recipes: allRecipeList } = useRecipes();
+
+  // Build a lookup for recipes available in context
+  const recipesById = useMemo(() => {
+    const m = new Map();
+    (allRecipeList || []).forEach((r) => r?._id && m.set(r._id, r));
+    return m;
+  }, [allRecipeList]);
+
+  // Normalize recipeIds to full recipe objects (skip missing)
+  const toRecipeObjects = useMemo(
+    () => (arr = []) =>
+      arr
+        .map((r) => (typeof r === "string" ? recipesById.get(r) : r))
+        .filter(Boolean),
+    [recipesById]
+  );
+
   const [openIdx, setOpenIdx] = useState(null);
   const [openDate, setOpenDate] = useState(null);
 
-  // ===== Group by date (stable, no animations here)
+  // Collect unique recipes across all menus for precomputation
+  const allRecipes = useMemo(() => {
+    const acc = [];
+    const seen = new Set();
+    menus.forEach((menu) => {
+      if (Array.isArray(menu.recipeIds)) {
+        toRecipeObjects(menu.recipeIds).forEach((recipe) => {
+          if (recipe && recipe._id && !seen.has(recipe._id)) {
+            seen.add(recipe._id);
+            acc.push(recipe);
+          }
+        });
+      }
+    });
+    return acc;
+  }, [menus, toRecipeObjects]);
+
+  const precomputedRecipeData = usePrecomputedRecipeData(allRecipes, ingredientsMap);
+
+  // Group menus by date
   const groupedByDate = useMemo(() => {
     return (menus || []).reduce((acc, menu) => {
       const key = menu?.date || "—";
@@ -55,29 +138,15 @@ export default function MenuCalendar({ menus = [], ingredientsMap = {} }) {
 
   const getTotalKcal = (recipes = []) =>
     recipes.reduce((sum, recipe) => {
-      const kcal =
-        recipe?.ingredients?.reduce((s, ing) => {
-          const meta = ingredientsMap[ing.ingredientId] || {};
-          const kcal = parseFloat(meta.kcal || 0);
-          const qty = parseFloat(ing.quantity || 0);
-          return s + (qty * kcal) / 1000;
-        }, 0) || 0;
-      return sum + kcal;
-    }, 0) || 0;
+      const data = precomputedRecipeData.get(recipe._id);
+      return sum + (data?.kcal || 0);
+    }, 0);
 
   const getTotalCost = (recipes = []) =>
     recipes.reduce((sum, recipe) => {
-      const cost =
-        recipe?.ingredients?.reduce((s, ing) => {
-          const meta = ingredientsMap[ing.ingredientId] || {};
-          const price = parseFloat(meta.pricePerKg || 0);
-          const yieldPct = parseFloat(meta.yield || 100);
-          const qty = parseFloat(ing.quantity || 0);
-          const adjustedQty = yieldPct === 0 ? 0 : qty / (yieldPct / 100);
-          return s + adjustedQty * price;
-        }, 0) || 0;
-      return sum + cost;
-    }, 0) || 0;
+      const data = precomputedRecipeData.get(recipe._id);
+      return sum + (data?.cost || 0);
+    }, 0);
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
@@ -101,14 +170,14 @@ export default function MenuCalendar({ menus = [], ingredientsMap = {} }) {
   const currentOpenMenu =
     openDate != null && openIdx != null ? (groupedByDate[openDate] || [])[openIdx] : null;
 
-  // ESC closes modal
+  // ESC to close modal
   useEffect(() => {
     const onKey = (e) => e.key === "Escape" && handleClose();
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  // ===== Simple sticky header (no transforms, overlays don’t block clicks)
+  // ---------- UI pieces ----------
   const DayHeader = ({ date, tags }) => (
     <div className="sticky top-0 z-10">
       <div className="relative overflow-hidden">
@@ -136,9 +205,8 @@ export default function MenuCalendar({ menus = [], ingredientsMap = {} }) {
     </div>
   );
 
-  // ===== Simple card (no in-view animations, only hover lift)
-  const Card = ({ menu, idx, onOpen }) => {
-    const recipes = Array.isArray(menu?.recipeIds) ? menu.recipeIds : [];
+  const Card = ({ menu, onOpen }) => {
+    const recipes = toRecipeObjects(Array.isArray(menu?.recipeIds) ? menu.recipeIds : []);
     const totalKcal = getTotalKcal(recipes);
     const totalCost = getTotalCost(recipes);
 
@@ -147,7 +215,6 @@ export default function MenuCalendar({ menus = [], ingredientsMap = {} }) {
         onClick={onOpen}
         className="group relative text-left rounded-2xl p-4 bg-white/80 border border-white shadow-[0_8px_24px_rgba(0,0,0,0.06)] hover:shadow-[0_16px_40px_rgba(0,0,0,0.10)] transition-all duration-200 hover:-translate-y-0.5 backdrop-blur-sm text-gray-900"
       >
-        {/* Glow ring */}
         <span className="pointer-events-none absolute inset-0 rounded-2xl ring-1 ring-transparent group-hover:ring-rose-200" />
 
         <div className="flex items-center justify-between mb-3">
@@ -189,7 +256,9 @@ export default function MenuCalendar({ menus = [], ingredientsMap = {} }) {
                 <FaDollarSign size={14} />
                 <span className="text-xs font-medium">Cost</span>
               </div>
-              <p className="text-lg font-extrabold mt-1 tabular-nums">${totalCost.toFixed(2)}</p>
+              <p className="text-lg font-extrabold mt-1 tabular-nums">
+                ${totalCost.toFixed(2)}
+              </p>
             </div>
           </div>
 
@@ -201,15 +270,14 @@ export default function MenuCalendar({ menus = [], ingredientsMap = {} }) {
           </div>
         </div>
 
-        {/* Subtle gradient corner */}
         <span className="pointer-events-none absolute -right-6 -bottom-6 h-20 w-20 rounded-full bg-gradient-to-tr from-rose-200 to-pink-200 opacity-60 blur-2xl" />
       </button>
     );
   };
 
+  // ---------- Render ----------
   return (
     <div className="space-y-8 text-gray-900">
-      {/* Fade in each day section once, no scroll observers */}
       {dayKeysSorted.map((date) => {
         const menuEntries = groupedByDate[date] || [];
         return (
@@ -220,13 +288,15 @@ export default function MenuCalendar({ menus = [], ingredientsMap = {} }) {
             transition={{ duration: 0.25 }}
             className="relative z-0 rounded-2xl overflow-hidden border border-rose-100/70 shadow-sm bg-white"
           >
-            <DayHeader date={date} tags={menuEntries.map((m) => m?.menuName).filter(Boolean)} />
+            <DayHeader
+              date={date}
+              tags={menuEntries.map((m) => m?.menuName).filter(Boolean)}
+            />
 
-            {/* No whileInView — just render */}
             <div className="p-5 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {menuEntries.map((menu, idx) => (
-                <div key={idx}>
-                  <Card menu={menu} idx={idx} onOpen={() => handleOpen(date, idx)} />
+                <div key={menu?._id || idx}>
+                  <Card menu={menu} onOpen={() => handleOpen(date, idx)} />
                 </div>
               ))}
             </div>
@@ -234,7 +304,6 @@ export default function MenuCalendar({ menus = [], ingredientsMap = {} }) {
         );
       })}
 
-      {/* Empty state */}
       {menus.length === 0 && (
         <div className="text-center py-16">
           <div className="mx-auto max-w-md">
@@ -244,13 +313,16 @@ export default function MenuCalendar({ menus = [], ingredientsMap = {} }) {
                 <FaCalendarDay size={28} />
               </div>
             </div>
-            <h3 className="text-lg font-semibold text-gray-800 mb-2">No menus scheduled</h3>
-            <p className="text-gray-500">Add menus to see them displayed in your calendar</p>
+            <h3 className="text-lg font-semibold text-gray-800 mb-2">
+              No menus scheduled
+            </h3>
+            <p className="text-gray-500">
+              Add menus to see them displayed in your calendar
+            </p>
           </div>
         </div>
       )}
 
-      {/* Details Modal (simple fade, no translate-centering) */}
       <AnimatePresence>
         {currentOpenMenu && (
           <motion.div
@@ -259,7 +331,6 @@ export default function MenuCalendar({ menus = [], ingredientsMap = {} }) {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
           >
-            {/* Backdrop */}
             <motion.div
               className="absolute inset-0 bg-black/50"
               onClick={handleClose}
@@ -268,7 +339,6 @@ export default function MenuCalendar({ menus = [], ingredientsMap = {} }) {
               exit={{ opacity: 0 }}
             />
 
-            {/* Panel (top aligned so no viewport clipping) */}
             <motion.div
               role="dialog"
               aria-modal="true"
@@ -292,7 +362,13 @@ export default function MenuCalendar({ menus = [], ingredientsMap = {} }) {
                 <div className="flex flex-wrap items-center gap-2 text-sm text-gray-600">
                   <span className="inline-flex items-center gap-2 font-medium">
                     <FaCalendarDay />
-                    {formatDate(currentOpenMenu?.date)}
+                    {(() => {
+                      const d = currentOpenMenu?.date;
+                      const dt = new Date(d);
+                      return isNaN(dt) ? d || "—" : dt.toLocaleDateString("en-US", {
+                        weekday: "long", month: "short", day: "numeric",
+                      });
+                    })()}
                   </span>
                   {currentOpenMenu?.menuName && (
                     <span className="inline-flex items-center gap-1 text-xs bg-rose-50 text-rose-700 px-2 py-1 rounded border border-rose-100">
@@ -305,52 +381,56 @@ export default function MenuCalendar({ menus = [], ingredientsMap = {} }) {
                 </h3>
               </div>
 
-              {/* Recipes list (just renders) */}
               <div className="space-y-3">
-                {(currentOpenMenu?.recipeIds || []).map((r, i) => (
-                  <div
-                    key={r?._id || i}
-                    className="border rounded-xl p-3 hover:border-rose-200/80 transition-colors"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="font-medium text-gray-900">{r?.name || "Unnamed"}</div>
-                      {r?.type && (
-                        <span className="text-xs bg-gray-100 px-2 py-1 rounded border border-gray-200 text-gray-700">
-                          {r.type}
-                        </span>
-                      )}
+                {toRecipeObjects(currentOpenMenu?.recipeIds || []).map((r, i) => {
+                  const recipeData = precomputedRecipeData.get(r._id);
+                  if (!recipeData) return null;
+
+                  return (
+                    <div
+                      key={r?._id || i}
+                      className="border rounded-xl p-3 hover:border-rose-200/80 transition-colors"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="font-medium text-gray-900">{recipeData.name}</div>
+                        {recipeData.type && (
+                          <span className="text-xs bg-gray-100 px-2 py-1 rounded border border-gray-200 text-gray-700">
+                            {recipeData.type}
+                          </span>
+                        )}
+                      </div>
+                      <div className="mt-2 text-sm text-gray-600 grid grid-cols-2 gap-2">
+                        <div>
+                          Portions: <span className="font-medium">{recipeData.portions}</span>
+                        </div>
+                        <div>
+                          Yield:{" "}
+                          <span className="font-medium">
+                            {Number.isFinite(recipeData.yieldWeight)
+                              ? Number(recipeData.yieldWeight).toFixed(2)
+                              : recipeData.yieldWeight || "—"}{" "}
+                            g
+                          </span>
+                        </div>
+                      </div>
+                      {recipeData.ingredients?.length ? (
+                        <div className="mt-2 text-xs text-gray-600">
+                          <span className="font-semibold">Ingredients:</span>{" "}
+                          {recipeData.ingredients.map((ing, idx) => {
+                            const meta = ingredientsMap[ing.ingredientId] || {};
+                            return (
+                              <span key={idx}>
+                                {meta.name || "Item"} {Number(ing.quantity || 0).toFixed(2)}{" "}
+                                {meta.originalUnit || ""}
+                                {idx < recipeData.ingredients.length - 1 ? ", " : ""}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      ) : null}
                     </div>
-                    <div className="mt-2 text-sm text-gray-600 grid grid-cols-2 gap-2">
-                      <div>
-                        Portions: <span className="font-medium">{r?.portions ?? "—"}</span>
-                      </div>
-                      <div>
-                        Yield:{" "}
-                        <span className="font-medium">
-                          {Number.isFinite(r?.yieldWeight)
-                            ? Number(r.yieldWeight).toFixed(2)
-                            : r?.yieldWeight || "—"}{" "}
-                          g
-                        </span>
-                      </div>
-                    </div>
-                    {r?.ingredients?.length ? (
-                      <div className="mt-2 text-xs text-gray-600">
-                        <span className="font-semibold">Ingredients:</span>{" "}
-                        {r.ingredients.map((ing, idx) => {
-                          const meta = ingredientsMap[ing.ingredientId] || {};
-                          return (
-                            <span key={idx}>
-                              {meta.name || "Item"} {Number(ing.quantity || 0).toFixed(2)}{" "}
-                              {meta.originalUnit || ""}
-                              {idx < r.ingredients.length - 1 ? ", " : ""}
-                            </span>
-                          );
-                        })}
-                      </div>
-                    ) : null}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </motion.div>
           </motion.div>

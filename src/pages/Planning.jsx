@@ -1,16 +1,22 @@
 import React, { useState, useMemo } from "react";
 import PlanningForm from "../features/planning/PlanningForm";
 import PlanningTable from "../features/planning/PlanningTable";
-import { FaFilter, FaCalendarDay, FaMapMarkerAlt, FaClipboardList, FaSync } from "react-icons/fa";
+import BaseForm from "../features/bases/BaseForm";
+import BaseTable from "../features/bases/BaseTable";
+import { FaFilter, FaCalendarDay, FaMapMarkerAlt, FaClipboardList } from "react-icons/fa";
 import { motion, AnimatePresence } from "framer-motion";
 import { usePlanning } from "../contexts/PlanningContext";
 import { useMenus } from "../contexts/MenuContext";
+import { useBases } from "../contexts/BaseContext";
 import { ymdLocal } from "../utils/date";
 
 export default function Planning() {
   const { plans, addPlan, editPlan, removePlan } = usePlanning();
   const { menus } = useMenus();
 
+  const { bases, addBase, editBase, removeBase } = useBases();
+
+  const [activeTab, setActiveTab] = useState("planning"); // 'planning' | 'bases'
   const [editIndex, setEditIndex] = useState(null);
   const [baseFilter, setBaseFilter] = useState("all");
   const [dateFilter, setDateFilter] = useState("");
@@ -27,7 +33,6 @@ export default function Planning() {
   };
 
   const handleEdit = (index) => setEditIndex(index);
-
   const handleDelete = (index) => {
     const p = plans[index];
     if (p?._id) removePlan(p._id);
@@ -44,7 +49,6 @@ export default function Planning() {
     [plans]
   );
 
-  // Quick stats (robust to old/new plan shapes)
   const stats = useMemo(() => {
     const total = filteredPlans.length;
     const uniqueBasesCount = new Set(filteredPlans.map((p) => p.base)).size;
@@ -58,7 +62,6 @@ export default function Planning() {
     return { total, uniqueBasesCount, uniqueDates, scheduled };
   }, [filteredPlans]);
 
-  // UI helpers
   const section = { hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0, transition: { duration: 0.35 } } };
   const chip = (active) =>
     `px-3 py-1.5 rounded-xl border text-sm transition-all ${
@@ -74,11 +77,11 @@ export default function Planning() {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
     >
-      {/* Decorative gradient background */}
+      {/* Decorative */}
       <div className="pointer-events-none absolute -top-20 -right-20 h-72 w-72 rounded-full bg-gradient-to-tr from-rose-200 to-pink-200 blur-3xl opacity-50" />
       <div className="pointer-events-none absolute -bottom-20 -left-20 h-60 w-60 rounded-full bg-gradient-to-br from-amber-100 to-rose-100 blur-3xl opacity-60" />
 
-      {/* Header / KPI ribbon */}
+      {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
@@ -94,100 +97,133 @@ export default function Planning() {
               </div>
               <div>
                 <h1 className="text-2xl font-bold">Production Planning</h1>
-                <p className="text-white/80 text-sm">Schedule menus per base & meal, filter quickly, and manage edits.</p>
+                <p className="text-white/80 text-sm">Schedule menus per base & meal, or manage your operational bases.</p>
               </div>
             </div>
-            <div className="grid grid-cols-4 gap-3">
-              <div className="rounded-xl bg-white/15 border border-white/20 p-3 text-center"><div className="text-[11px] text-white/80">Plans</div><div className="text-lg font-extrabold">{stats.total}</div></div>
-              <div className="rounded-xl bg-white/15 border border-white/20 p-3 text-center"><div className="text-[11px] text-white/80">Bases</div><div className="text-lg font-extrabold">{stats.uniqueBasesCount}</div></div>
-              <div className="rounded-xl bg-white/15 border border-white/20 p-3 text-center"><div className="text-[11px] text-white/80">Dates</div><div className="text-lg font-extrabold">{stats.uniqueDates}</div></div>
-              <div className="rounded-xl bg-white/15 border border-white/20 p-3 text-center"><div className="text-[11px] text-white/80">Meals</div><div className="text-lg font-extrabold">{stats.scheduled}</div></div>
-            </div>
+
+            {/* KPI ribbon */}
+            {activeTab === "planning" && (
+              <div className="grid grid-cols-4 gap-3">
+                <div className="rounded-xl bg-white/15 border border-white/20 p-3 text-center"><div className="text-[11px] text-white/80">Plans</div><div className="text-lg font-extrabold">{stats.total}</div></div>
+                <div className="rounded-xl bg-white/15 border border-white/20 p-3 text-center"><div className="text-[11px] text-white/80">Bases</div><div className="text-lg font-extrabold">{stats.uniqueBasesCount}</div></div>
+                <div className="rounded-xl bg-white/15 border border-white/20 p-3 text-center"><div className="text-[11px] text-white/80">Dates</div><div className="text-lg font-extrabold">{stats.uniqueDates}</div></div>
+                <div className="rounded-xl bg-white/15 border border-white/20 p-3 text-center"><div className="text-[11px] text-white/80">Meals</div><div className="text-lg font-extrabold">{stats.scheduled}</div></div>
+              </div>
+            )}
           </div>
-        </div>
-      </motion.div>
 
-      {/* Filters */}
-      <motion.div
-        variants={section}
-        initial="hidden"
-        animate="show"
-        className="mt-5"
-      >
-        <div className="rounded-2xl border bg-white/80 backdrop-blur shadow-sm p-4">
-          <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
-            <div className="flex items-center gap-2 text-gray-700">
-              <FaFilter />
-              <span className="text-sm font-semibold">Filters</span>
-            </div>
-
-            {/* Base chips */}
-            <div className="flex flex-1 items-center gap-2 overflow-x-auto no-scrollbar">
-              <FaMapMarkerAlt className="text-gray-400 shrink-0" />
-              <div className="flex gap-2">
-                {uniqueBases.map((base) => (
-                  <button key={base} onClick={() => setBaseFilter(base)} className={chip(baseFilter === base)}>
-                    {base === "all" ? "All Bases" : base}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Date */}
-            <div className="flex items-center gap-2">
-              <FaCalendarDay className="text-gray-400" />
-              <input
-                type="date"
-                value={dateFilter}
-                onChange={(e) => setDateFilter(e.target.value)}
-                className="px-3 py-2 rounded-xl border border-gray-200 text-sm focus:border-rose-400 focus:ring-4 focus:ring-rose-200/50 outline-none"
-              />
-              <motion.button
-                whileTap={{ scale: 0.98 }}
-                onClick={() => {
-                  setBaseFilter("all");
-                  setDateFilter("");
-                }}
-                className="px-3 py-2 rounded-xl border text-sm hover:bg-gray-50"
+          {/* Tab switcher */}
+          <div className="mt-4 inline-flex rounded-xl overflow-hidden border border-white/30 bg-white/10">
+            {[
+              { k: "planning", label: "Planning" },
+              { k: "bases", label: "Bases" },
+            ].map((t) => (
+              <button
+                key={t.k}
+                onClick={() => setActiveTab(t.k)}
+                className={`px-4 py-2 text-sm font-medium ${
+                  activeTab === t.k ? "bg-white text-rose-600" : "text-white/90 hover:bg-white/10"
+                }`}
               >
-                Reset
-              </motion.button>
-            </div>
+                {t.label}
+              </button>
+            ))}
           </div>
         </div>
       </motion.div>
 
-      {/* Form */}
-      <AnimatePresence>
-        <motion.div
-          key={editIndex !== null ? "edit" : "new"}
-          initial={{ opacity: 0, y: 15 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: 10 }}
-          transition={{ duration: 0.3 }}
-          className="mb-6 mt-5"
-        >
-          <PlanningForm
-            menus={menus}
-            onSubmit={handleSave}
-            initialValues={editIndex !== null ? plans[editIndex] : null}
-          />
-        </motion.div>
-      </AnimatePresence>
+      {/* PLANNING TAB */}
+      {activeTab === "planning" && (
+        <>
+          {/* Filters */}
+          <motion.div variants={section} initial="hidden" animate="show" className="mt-5">
+            <div className="rounded-2xl border bg-white/80 backdrop-blur shadow-sm p-4">
+              <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
+                <div className="flex items-center gap-2 text-gray-700">
+                  <span className="text-sm font-semibold">Filters</span>
+                </div>
 
-      {/* Table */}
-      <motion.div
-        variants={section}
-        initial="hidden"
-        animate="show"
-        className="bg-white/90 border border-gray-100 shadow-lg rounded-xl overflow-hidden"
-      >
-        <PlanningTable
-          plans={filteredPlans}
-          onEdit={handleEdit}
-          onDelete={handleDelete}
-        />
-      </motion.div>
+                {/* Base chips */}
+                <div className="flex flex-1 items-center gap-2 overflow-x-auto no-scrollbar">
+                  <FaMapMarkerAlt className="text-gray-400 shrink-0" />
+                  <div className="flex gap-2">
+                    {uniqueBases.map((base) => (
+                      <button key={base} onClick={() => setBaseFilter(base)} className={chip(baseFilter === base)}>
+                        {base === "all" ? "All Bases" : base}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Date */}
+                <div className="flex items-center gap-2">
+                  <FaCalendarDay className="text-gray-400" />
+                  <input
+                    type="date"
+                    value={dateFilter}
+                    onChange={(e) => setDateFilter(e.target.value)}
+                    className="px-3 py-2 rounded-xl border border-gray-200 text-sm focus:border-rose-400 focus:ring-4 focus:ring-rose-200/50 outline-none"
+                  />
+                  <motion.button
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => {
+                      setBaseFilter("all");
+                      setDateFilter("");
+                    }}
+                    className="px-3 py-2 rounded-xl border text-sm hover:bg-gray-50"
+                  >
+                    Reset
+                  </motion.button>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Form */}
+          <AnimatePresence>
+            <motion.div
+              key={editIndex !== null ? "edit" : "new"}
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 10 }}
+              transition={{ duration: 0.3 }}
+              className="mb-6 mt-5"
+            >
+              <PlanningForm
+                menus={menus}
+                onSubmit={handleSave}
+                initialValues={editIndex !== null ? plans[editIndex] : null}
+              />
+            </motion.div>
+          </AnimatePresence>
+
+          {/* Table */}
+          <motion.div variants={section} initial="hidden" animate="show" className="bg-white/90 border border-gray-100 shadow-lg rounded-xl overflow-hidden">
+            <PlanningTable plans={filteredPlans} onEdit={handleEdit} onDelete={handleDelete} />
+          </motion.div>
+        </>
+      )}
+
+      {/* BASES TAB */}
+      {activeTab === "bases" && (
+        <>
+          <motion.div variants={section} initial="hidden" animate="show" className="mt-5">
+            <BaseForm
+              initialValues={null}
+              onSubmit={(payload) => addBase(payload)}
+            />
+          </motion.div>
+
+          <motion.div variants={section} initial="hidden" animate="show" className="mt-5 bg-white/90 border border-gray-100 shadow-lg rounded-xl overflow-hidden">
+            <BaseTable
+  bases={bases}
+  onEdit={(updated) => editBase(updated._id, updated)}
+  onDelete={(id) => removeBase(id)}
+/>
+
+          </motion.div>
+        </>
+      )}
     </motion.div>
   );
 }

@@ -1,4 +1,3 @@
-// src/features/requisitions/RequisitionList.jsx
 import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { FaEdit, FaTrash, FaCheckCircle } from "react-icons/fa";
@@ -8,7 +7,7 @@ import { FaEdit, FaTrash, FaCheckCircle } from "react-icons/fa";
  * - data: array
  * - onEdit(index)
  * - onDelete(index)
- * - onComplete?(requisition)  // opens completion modal for this row
+ * - onComplete?(requisition)
  */
 export default function RequisitionList({ data = [], onEdit, onDelete, onComplete }) {
   const statusPill = (status) => {
@@ -27,7 +26,7 @@ export default function RequisitionList({ data = [], onEdit, onDelete, onComplet
     );
   };
 
-  // Detect whether to show amount columns
+  // Detect whether to show amount columns (optional)
   const hasAmounts = (data || []).some(
     (r) =>
       typeof r.receivedQty === "number" ||
@@ -35,15 +34,12 @@ export default function RequisitionList({ data = [], onEdit, onDelete, onComplet
       typeof r.lineTotal === "number"
   );
 
-  // Helper to format money-ish numbers
   const fmt2 = (n) =>
     typeof n === "number" && !Number.isNaN(n) ? n.toFixed(2) : n === 0 ? "0.00" : "—";
 
-  // Derive a line total if not provided (prefer receivedQty * unitPrice, else quantity * unitPrice)
-  const deriveLineTotal = (r) => {
+  const deriveLineTotal = (r, q) => {
     if (typeof r.lineTotal === "number") return r.lineTotal;
-    const qty = typeof r.receivedQty === "number" ? r.receivedQty : r.quantity;
-    if (typeof qty === "number" && typeof r.unitPrice === "number") return qty * r.unitPrice;
+    if (typeof q === "number" && typeof r.unitPrice === "number") return q * r.unitPrice;
     return undefined;
   };
 
@@ -110,9 +106,15 @@ export default function RequisitionList({ data = [], onEdit, onDelete, onComplet
                 </tr>
               ) : (
                 data.map((req, idx) => {
+                  const first = req?.items?.[0] || {};
+                  const item = req.item ?? first.item;
+                  const quantity = req.quantity ?? first.quantity;
+                  const unit = req.unit ?? first.unit;
+                  const supplier = req.supplier ?? first.supplier;
+
                   const canComplete =
                     typeof onComplete === "function" && req?.status !== "completed";
-                  const lineTotal = deriveLineTotal(req);
+                  const lineTotal = deriveLineTotal(req, quantity);
 
                   return (
                     <motion.tr
@@ -121,16 +123,14 @@ export default function RequisitionList({ data = [], onEdit, onDelete, onComplet
                       initial="hidden"
                       animate="show"
                       exit="exit"
-                      className={`border-b transition ${
-                        idx % 2 ? "bg-gray-50" : "bg-white"
-                      } hover:bg-rose-50`}
+                      className={`border-b transition ${idx % 2 ? "bg-gray-50" : "bg-white"} hover:bg-rose-50`}
                     >
                       <td className="p-3 whitespace-nowrap">{req?.date || "—"}</td>
                       <td className="p-3 whitespace-nowrap">{req?.requestedBy || "—"}</td>
-                      <td className="p-3 whitespace-nowrap text-gray-900">{req?.item || "—"}</td>
-                      <td className="p-3 whitespace-nowrap">{req?.quantity ?? "—"}</td>
-                      <td className="p-3 whitespace-nowrap">{req?.unit || "—"}</td>
-                      <td className="p-3 whitespace-nowrap">{req?.supplier || "—"}</td>
+                      <td className="p-3 whitespace-nowrap text-gray-900">{item || "—"}</td>
+                      <td className="p-3 whitespace-nowrap">{quantity ?? "—"}</td>
+                      <td className="p-3 whitespace-nowrap">{unit || "—"}</td>
+                      <td className="p-3 whitespace-nowrap">{supplier || "—"}</td>
 
                       {hasAmounts && (
                         <>
@@ -186,9 +186,15 @@ export default function RequisitionList({ data = [], onEdit, onDelete, onComplet
             <div className="text-center text-gray-500 py-6">No requisitions found.</div>
           ) : (
             data.map((req, idx) => {
+              const first = req?.items?.[0] || {};
+              const item = req.item ?? first.item;
+              const quantity = req.quantity ?? first.quantity;
+              const unit = req.unit ?? first.unit;
+              const supplier = req.supplier ?? first.supplier;
+
               const canComplete =
                 typeof onComplete === "function" && req?.status !== "completed";
-              const lineTotal = deriveLineTotal(req);
+              const lineTotal = deriveLineTotal(req, quantity);
 
               return (
                 <motion.div
@@ -199,14 +205,14 @@ export default function RequisitionList({ data = [], onEdit, onDelete, onComplet
                   className="rounded-xl border border-gray-100 bg-white p-3 shadow-sm"
                 >
                   <div className="flex items-center justify-between">
-                    <div className="font-semibold text-gray-900">{req?.item || "—"}</div>
+                    <div className="font-semibold text-gray-900">{item || "—"}</div>
                     {statusPill(req?.status)}
                   </div>
                   <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-gray-600">
                     <div><span className="text-gray-500">Date:</span> {req?.date || "—"}</div>
-                    <div><span className="text-gray-500">Supplier:</span> {req?.supplier || "—"}</div>
-                    <div><span className="text-gray-500">Qty:</span> {req?.quantity ?? "—"}</div>
-                    <div><span className="text-gray-500">Unit:</span> {req?.unit || "—"}</div>
+                    <div><span className="text-gray-500">Supplier:</span> {supplier || "—"}</div>
+                    <div><span className="text-gray-500">Qty:</span> {quantity ?? "—"}</div>
+                    <div><span className="text-gray-500">Unit:</span> {unit || "—"}</div>
                     {hasAmounts && (
                       <>
                         <div><span className="text-gray-500">Recv Qty:</span> {typeof req?.receivedQty === "number" ? req.receivedQty : "—"}</div>

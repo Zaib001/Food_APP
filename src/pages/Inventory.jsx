@@ -1,4 +1,3 @@
-// src/pages/Inventory.jsx (Polished UI)
 import React, { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import InventoryForm from "../features/inventory/InventoryForm";
@@ -9,11 +8,9 @@ import { useInventory } from "../contexts/InventoryContext";
 import { useIngredients } from "../contexts/IngredientContext";
 
 export default function Inventory() {
-  const { inventory, addInventory, editInventory, deleteOne, downloadCSV } = useInventory();
+  const { inventory, addInventory, updateOne, deleteOne, downloadCSV } = useInventory();
   const { ingredients } = useIngredients();
   const [editIndex, setEditIndex] = useState(null);
-
- 
 
   const handleSave = async (item) => {
     const ingredient = ingredients.find((i) => i._id === item.ingredientId);
@@ -21,7 +18,7 @@ export default function Inventory() {
     const entry = { ...item, ingredientId: ingredient._id, ingredientName: ingredient.name };
 
     if (editIndex !== null) {
-      await editInventory(inventory[editIndex]._id, entry);
+      await updateOne(inventory[editIndex]._id, entry);
       setEditIndex(null);
     } else {
       await addInventory(entry);
@@ -33,14 +30,19 @@ export default function Inventory() {
     const id = inventory[index]._id;
     await deleteOne(id);
   };
-const stats = useMemo(() => {
-  const totalEntries = inventory.length;
-  const totalQty = inventory.reduce((s, r) => s + Number(r.quantity || 0), 0);
-  const low = inventory.filter((r) => Number(r.quantity) > 0 && Number(r.quantity) < 5).length;
-  const out = inventory.filter((r) => Number(r.quantity) <= 0).length;
-  const totalValue = inventory.reduce((s, r) => s + Number(r.costTotal || ((r.quantity||0)*(r.purchasePrice||0))), 0);
-  return { totalEntries, totalQty, low, out, totalValue };
-}, [inventory]);
+
+  const stats = useMemo(() => {
+    const totalEntries = inventory.length;
+    const totalQty = inventory.reduce((s, r) => s + Number(r.quantity || 0), 0);
+    const low = inventory.filter((r) => Number(r.quantity) > 0 && Number(r.quantity) < 5).length;
+    const out = inventory.filter((r) => Number(r.quantity) <= 0).length;
+    const totalValue = inventory.reduce(
+      (s, r) => s + Number(r.costTotal || ((r.quantity || 0) * (r.purchasePrice || 0))),
+      0
+    );
+    return { totalEntries, totalQty, low, out, totalValue };
+  }, [inventory]);
+
   const section = { hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0, transition: { duration: 0.35 } } };
 
   return (
@@ -67,12 +69,26 @@ const stats = useMemo(() => {
 
             {/* Quick Stats */}
             <div className="grid grid-cols-5 gap-3">
-              <div className="rounded-xl bg-white/15 border border-white/20 p-3 text-center"><div className="text-[11px] text-white/80">Entries</div><div className="text-lg font-extrabold">{stats.totalEntries}</div></div>
-              <div className="rounded-xl bg-white/15 border border-white/20 p-3 text-center"><div className="text-[11px] text-white/80">Total Qty</div><div className="text-lg font-extrabold">{stats.totalQty}</div></div>
-              <div className="rounded-xl bg-white/15 border border-white/20 p-3 text-center"><div className="text-[11px] text-white/80">Low</div><div className="text-lg font-extrabold">{stats.low}</div></div>
-              <div className="rounded-xl bg-white/15 border border-white/20 p-3 text-center"><div className="text-[11px] text-white/80">Out</div><div className="text-lg font-extrabold">{stats.out}</div></div>
-              <div className="rounded-xl bg-white/15 border border-white/20 p-3 text-center"><div className="text-[11px] text-white/80">Total Value</div><div className="text-lg font-extrabold">{stats.totalValue.toFixed(2)}</div></div>
-              
+              <div className="rounded-xl bg-white/15 border border-white/20 p-3 text-center">
+                <div className="text-[11px] text-white/80">Entries</div>
+                <div className="text-lg font-extrabold">{stats.totalEntries}</div>
+              </div>
+              <div className="rounded-xl bg-white/15 border border-white/20 p-3 text-center">
+                <div className="text-[11px] text-white/80">Total Qty</div>
+                <div className="text-lg font-extrabold">{stats.totalQty}</div>
+              </div>
+              <div className="rounded-xl bg-white/15 border border-white/20 p-3 text-center">
+                <div className="text-[11px] text-white/80">Low</div>
+                <div className="text-lg font-extrabold">{stats.low}</div>
+              </div>
+              <div className="rounded-xl bg-white/15 border border-white/20 p-3 text-center">
+                <div className="text-[11px] text-white/80">Out</div>
+                <div className="text-lg font-extrabold">{stats.out}</div>
+              </div>
+              <div className="rounded-xl bg-white/15 border border-white/20 p-3 text-center">
+                <div className="text-[11px] text-white/80">Total Value</div>
+                <div className="text-lg font-extrabold">{stats.totalValue.toFixed(2)}</div>
+              </div>
             </div>
           </div>
 
@@ -84,9 +100,13 @@ const stats = useMemo(() => {
         </div>
       </motion.div>
 
-      {/* Form */}
+      {/* Form (make sure your InventoryForm includes base/location, direction, source if desired) */}
       <motion.div variants={section} initial="hidden" animate="show" className="mt-6">
-        <InventoryForm ingredients={ingredients} onSave={handleSave} initialData={editIndex !== null ? inventory[editIndex] : {}} />
+        <InventoryForm
+          ingredients={ingredients}
+          onSave={handleSave}
+          initialData={editIndex !== null ? inventory[editIndex] : {}}
+        />
       </motion.div>
 
       {/* Table */}
@@ -96,7 +116,10 @@ const stats = useMemo(() => {
 
       {/* Chart */}
       <motion.div variants={section} initial="hidden" animate="show" className="mt-6 rounded-2xl border border-gray-100 bg-white/80 shadow-sm p-4">
-        <div className="flex items-center gap-2 text-gray-700 mb-2"><FaChartBar className="text-rose-600" /><h3 className="text-md font-semibold">Stock by Ingredient</h3></div>
+        <div className="flex items-center gap-2 text-gray-700 mb-2">
+          <FaChartBar className="text-rose-600" />
+          <h3 className="text-md font-semibold">Stock by Ingredient</h3>
+        </div>
         <StockBarChart data={inventory} />
       </motion.div>
     </div>

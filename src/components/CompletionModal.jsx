@@ -90,6 +90,8 @@ export default function CompletionModal({ isOpen, onClose, requisition, onComple
       notes: (notes || '').trim(),
     };
 
+    // inside handleSubmit() in CompletionModal
+
     if (isHeader) {
       const lines = requisition.items.map((it) => ({
         lineId: it._id,
@@ -99,6 +101,8 @@ export default function CompletionModal({ isOpen, onClose, requisition, onComple
         receivedQty: Number(receivedQtyById[it._id] || 0),
         unitPrice: Number(unitPriceById[it._id] || 0),
         lineTotal: Number(lineTotals[it._id] || 0),
+        ingredientId: it.ingredientId ? String(it.ingredientId) : undefined,
+        supplier: it.supplier || requisition.supplier || '', // best-available supplier
       }));
       onComplete?.(requisition._id, { ...payloadBase, lines, grandTotal: Number(grandTotal || 0) });
     } else {
@@ -110,9 +114,12 @@ export default function CompletionModal({ isOpen, onClose, requisition, onComple
         receivedQty: Number(singleReceivedQty || 0),
         unitPrice: Number(singleUnitPrice || 0),
         lineTotal: Number(singleLineTotal || 0),
+        ingredientId: requisition.ingredientId ? String(requisition.ingredientId) : undefined,
+        supplier: requisition.supplier || '',
       };
       onComplete?.(requisition._id, { ...payloadBase, lines: [single], grandTotal: Number(grandTotal || 0) });
     }
+
 
     onClose?.();
   };
@@ -124,7 +131,7 @@ export default function CompletionModal({ isOpen, onClose, requisition, onComple
       {isOpen && (
         <div
           className="fixed inset-0 bg-black/50 z-[1000] flex items-start justify-center pt-8 sm:pt-16 px-4"
-          // page never scrolls to find the modal; the panel scrolls inside
+        // page never scrolls to find the modal; the panel scrolls inside
         >
           <motion.div
             initial={{ opacity: 0, y: 16, scale: 0.98 }}

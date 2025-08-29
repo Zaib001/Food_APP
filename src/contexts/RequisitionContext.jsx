@@ -1,5 +1,4 @@
-// src/contexts/RequisitionContext.jsx
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import {
   getAllRequisitions as apiGetAll,
   createRequisition as apiCreate,
@@ -13,10 +12,7 @@ import {
 const RequisitionContext = createContext(null);
 export const useRequisitions = () => {
   const ctx = useContext(RequisitionContext);
-  if (!ctx) {
-    // Helpful error if the provider isn't wrapping this subtree
-    throw new Error('useRequisitions must be used within a RequisitionProvider');
-  }
+  if (!ctx) throw new Error('useRequisitions must be used within a RequisitionProvider');
   return ctx;
 };
 
@@ -24,73 +20,89 @@ export const RequisitionProvider = ({ children }) => {
   const [requisitions, setRequisitions] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchRequisitions = async (filters = {}) => {
+  /** Normalize top-level fields from items[0] so UI can read simply */
+  const normalize = useCallback((arr) => {
+    return (Array.isArray(arr) ? arr : []).map((r) => {
+      const f = r?.items?.[0] || {};
+      return {
+        ...r,
+        item: r.item ?? f.item,
+        quantity: r.quantity ?? f.quantity,
+        unit: r.unit ?? f.unit,
+        supplier: r.supplier ?? f.supplier,
+        ingredientId: r.ingredientId ?? f.ingredientId,
+      };
+    });
+  }, []);
+
+  const fetchRequisitions = useCallback(async (filters = {}) => {
     try {
       setLoading(true);
       const res = await apiGetAll(filters);
-      // API may return a paginated shape { data, total, page, pages }
       const payload = Array.isArray(res.data) ? res.data : res.data?.data;
-      setRequisitions(Array.isArray(payload) ? payload : []);
+      setRequisitions(normalize(payload));
     } catch (err) {
       console.error('Failed to fetch requisitions:', err);
-      setRequisitions([]); // keep state consistent
+      setRequisitions([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, [normalize]);
 
-  const addRequisition = async (data) => {
+  const addRequisition = useCallback(async (data) => {
     const res = await apiCreate(data);
-    setRequisitions(prev => [...prev, res.data]);
-  };
+    setRequisitions((prev) => [...prev, ...normalize([res.data])]);
+  }, [normalize]);
 
-  const updateOne = async (id, data) => {
+  const updateOne = useCallback(async (id, data) => {
     const res = await apiUpdate(id, data);
-    setRequisitions(prev => prev.map(r => (r._id === id ? res.data : r)));
-  };
+    const norm = normalize([res.data])[0];
+    setRequisitions((prev) => prev.map((r) => (r._id === id ? norm : r)));
+  }, [normalize]);
 
-  const deleteOne = async (id) => {
+  const deleteOne = useCallback(async (id) => {
     await apiDelete(id);
-    setRequisitions(prev => prev.filter(r => r._id !== id));
-  };
+    setRequisitions((prev) => prev.filter((r) => r._id !== id));
+  }, []);
 
-  const importBulk = async (generatedReqs) => {
+  const importBulk = useCallback(async (generatedReqs) => {
     await apiImport(generatedReqs);
-    await fetchRequisitions(); // refresh after import
-  };
-
-  // NEW: header approvals
-  const approveOne = async (id) => {
-    await apiApprove(id);
-    // optimistic client update
-    setRequisitions(prev => prev.map(r => (r._id === id ? { ...r, status: 'approved' } : r)));
-  };
-
-  const bulkApprove = async (filter = {}) => {
-    await apiBulkApprove(filter);
-    // lightweight refresh
     await fetchRequisitions();
-  };
+  }, [fetchRequisitions]);
+
+  const approveOne = useCallback(async (id) => {
+    await apiApprove(id);
+    setRequisitions((prev) => prev.map((r) => (r._id === id ? { ...r, status: 'approved' } : r)));
+  }, []);
+
+  const bulkApprove = useCallback(async (filter = {}) => {
+    await apiBulkApprove(filter);
+    await fetchRequisitions();
+  }, [fetchRequisitions]);
 
   useEffect(() => {
     fetchRequisitions();
-  }, []);
+  }, [fetchRequisitions]);
+
+  const value = useMemo(() => ({
+    requisitions,
+    loading,
+    fetchRequisitions,
+    addRequisition,
+    updateOne,
+    deleteOne,
+    importBulk,
+    approveOne,
+    bulkApprove,
+    setRequisitions,
+  }), [
+    requisitions, loading,
+    fetchRequisitions, addRequisition, updateOne, deleteOne,
+    importBulk, approveOne, bulkApprove,
+  ]);
 
   return (
-    <RequisitionContext.Provider
-      value={{
-        requisitions,
-        loading,
-        fetchRequisitions,
-        addRequisition,
-        updateOne,
-        deleteOne,
-        importBulk,
-        approveOne,
-        bulkApprove,
-        setRequisitions, 
-      }}
-    >
+    <RequisitionContext.Provider value={value}>
       {children}
     </RequisitionContext.Provider>
   );

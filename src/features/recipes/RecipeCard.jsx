@@ -10,11 +10,13 @@ import {
   FaTags,
   FaLock,
   FaUnlock,
-  FaEye
+  FaEye,
+  FaFilePdf // Added PDF icon
 } from 'react-icons/fa';
 import { motion } from 'framer-motion';
 import axios from 'axios';
 import toast from 'react-hot-toast';
+import { exportSingleRecipeToPDF } from '../../components/exportRecipesToPDF'; // Import the new function
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://food-backend-qsbp.onrender.com/api';
 const headers = () => ({ Authorization: `Bearer ${localStorage.getItem('token')}` });
@@ -30,6 +32,7 @@ export default function RecipeCard({
   onRefresh       // optional: reload list after lock/unlock
 }) {
   const [clientCount, setClientCount] = useState(recipe.portions || 10);
+  const [exporting, setExporting] = useState(false);
 
   // role from localStorage (server still enforces)
   const currentUser = useMemo(() => {
@@ -70,6 +73,19 @@ export default function RecipeCard({
       const msg = e?.response?.data?.message || 'Lock toggle failed';
       toast.error(msg);
       console.error(e);
+    }
+  };
+
+  const handleExportPDF = async () => {
+    setExporting(true);
+    try {
+      await exportSingleRecipeToPDF(recipe, ingredientsMap);
+      toast.success('Recipe exported as PDF');
+    } catch (error) {
+      console.error('Export failed:', error);
+      toast.error('Failed to export recipe');
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -228,6 +244,19 @@ export default function RecipeCard({
             Base portions: <span className="font-medium">{recipe.basePortions || recipe.portions}</span>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              onClick={handleExportPDF}
+              disabled={exporting}
+              className={`${headerActionClass} ${
+                exporting
+                  ? 'text-gray-300 border-gray-200 cursor-not-allowed'
+                  : 'text-purple-700 border-purple-200 hover:bg-purple-50'
+              }`}
+              title="Export as PDF"
+            >
+              <FaFilePdf /> {exporting ? 'Exporting...' : 'Export'}
+            </button>
+
             <button
               onClick={onEdit}
               disabled={recipe.isLocked && !isAdmin}

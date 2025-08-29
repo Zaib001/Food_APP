@@ -1,10 +1,8 @@
-// src/features/inventory/InventoryTable.jsx
 import React from "react";
 import { FaEdit, FaTrash } from "react-icons/fa";
 import { motion, AnimatePresence } from "framer-motion";
 
 export default function InventoryTable({ data = [], onEdit, onDelete }) {
-  console.log("inventory" , data)
   const getStatus = (qty) => {
     const n = Number(qty);
     if (!Number.isFinite(n) || n <= 0)
@@ -19,7 +17,6 @@ export default function InventoryTable({ data = [], onEdit, onDelete }) {
     try {
       return new Intl.NumberFormat(undefined, { style: "currency", currency }).format(num);
     } catch {
-      // fallback if currency code is invalid/not supported on the user's locale
       return `${num.toFixed(2)} ${currency}`;
     }
   };
@@ -37,7 +34,9 @@ export default function InventoryTable({ data = [], onEdit, onDelete }) {
     "Purchase (per unit)",
     "Total Cost",
     "Date",
-    "Status",
+    "Base / Location",
+    "Direction",
+    "Source",
     "Actions",
   ];
 
@@ -55,10 +54,7 @@ export default function InventoryTable({ data = [], onEdit, onDelete }) {
           <thead className="bg-gray-50 text-gray-700 sticky top-0 z-10">
             <tr className="border-y">
               {headers.map((h) => (
-                <th
-                  key={h}
-                  className={`p-3 text-left ${h === "Actions" ? "text-center" : ""}`}
-                >
+                <th key={h} className={`p-3 text-left ${h === "Actions" ? "text-center" : ""}`}>
                   {h}
                 </th>
               ))}
@@ -78,8 +74,7 @@ export default function InventoryTable({ data = [], onEdit, onDelete }) {
                   const status = getStatus(item.quantity);
                   const currency = item.currency || "USD";
                   const purchase = Number(item.purchasePrice ?? 0);
-                  const total =
-                    Number(item.costTotal ?? (Number(item.quantity || 0) * purchase));
+                  const total = Number(item.costTotal ?? (Number(item.quantity || 0) * purchase));
 
                   return (
                     <motion.tr
@@ -88,35 +83,36 @@ export default function InventoryTable({ data = [], onEdit, onDelete }) {
                       initial="hidden"
                       animate="show"
                       exit={{ opacity: 0 }}
-                      className={`border-b transition ${
-                        index % 2 ? "bg-gray-50" : "bg-white"
-                      } hover:bg-rose-50`}
+                      className={`border-b transition ${index % 2 ? "bg-gray-50" : "bg-white"} hover:bg-rose-50`}
                     >
                       <td className="p-3 whitespace-nowrap">
                         {item.ingredientName || item.ingredientId}
                       </td>
-                      <td className="p-3 whitespace-nowrap">{item.supplier}</td>
+                      <td className="p-3 whitespace-nowrap">{item.supplier || "—"}</td>
                       <td className="p-3 whitespace-nowrap font-medium">{item.quantity}</td>
                       <td className="p-3 whitespace-nowrap">{item.unit}</td>
 
-                      {/* Purchase price per unit */}
                       <td className="p-3 whitespace-nowrap">
                         {formatMoney(purchase, currency)}
                       </td>
 
-                      {/* Total cost = qty * purchasePrice (or costTotal if provided by backend) */}
                       <td className="p-3 whitespace-nowrap font-medium">
                         {formatMoney(total, currency)}
                       </td>
 
                       <td className="p-3 whitespace-nowrap">{item.date}</td>
 
+                      {/* NEW: Base / Location display (supports base, baseLocation, or location) */}
                       <td className="p-3 whitespace-nowrap">
-                        <span
-                          className={`px-2 py-0.5 rounded-full text-xs font-semibold border ${status.color}`}
-                        >
-                          {status.label}
-                        </span>
+                        {item.base || item.baseLocation || item.location || "—"}
+                      </td>
+
+                      {/* NEW: Direction + Source */}
+                      <td className="p-3 whitespace-nowrap capitalize">
+                        {item.direction || "inbound"}
+                      </td>
+                      <td className="p-3 whitespace-nowrap">
+                        {item.sourceType ? `${item.sourceType}${item.sourceId ? `: ${item.sourceId}` : ""}` : "—"}
                       </td>
 
                       <td className="p-3 whitespace-nowrap text-center">
@@ -156,8 +152,7 @@ export default function InventoryTable({ data = [], onEdit, onDelete }) {
               const status = getStatus(item.quantity);
               const currency = item.currency || "USD";
               const purchase = Number(item.purchasePrice ?? 0);
-              const total =
-                Number(item.costTotal ?? (Number(item.quantity || 0) * purchase));
+              const total = Number(item.costTotal ?? (Number(item.quantity || 0) * purchase));
 
               return (
                 <motion.div
@@ -179,39 +174,24 @@ export default function InventoryTable({ data = [], onEdit, onDelete }) {
                   </div>
 
                   <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-gray-600">
-                    <div>
-                      <span className="text-gray-500">Supplier:</span> {item.supplier}
+                    <div><span className="text-gray-500">Supplier:</span> {item.supplier || "—"}</div>
+                    <div><span className="text-gray-500">Qty:</span> {item.quantity}</div>
+                    <div><span className="text-gray-500">Unit:</span> {item.unit}</div>
+                    <div><span className="text-gray-500">Date:</span> {item.date}</div>
+                    <div><span className="text-gray-500">Base:</span> {item.base || item.baseLocation || item.location || "—"}</div>
+                    <div><span className="text-gray-500">Direction:</span> {item.direction || "inbound"}</div>
+                    <div className="col-span-2">
+                      <span className="text-gray-500">Source:</span> {item.sourceType ? `${item.sourceType}${item.sourceId ? `: ${item.sourceId}` : ""}` : "—"}
                     </div>
-                    <div>
-                      <span className="text-gray-500">Qty:</span> {item.quantity}
-                    </div>
-                    <div>
-                      <span className="text-gray-500">Unit:</span> {item.unit}
-                    </div>
-                    <div>
-                      <span className="text-gray-500">Date:</span> {item.date}
-                    </div>
-                    <div>
-                      <span className="text-gray-500">Price:</span>{" "}
-                      {formatMoney(purchase, currency)}
-                    </div>
-                    <div>
-                      <span className="text-gray-500">Total:</span>{" "}
-                      <strong>{formatMoney(total, currency)}</strong>
-                    </div>
+                    <div><span className="text-gray-500">Price:</span> {formatMoney(purchase, currency)}</div>
+                    <div><span className="text-gray-500">Total:</span> <strong>{formatMoney(total, currency)}</strong></div>
                   </div>
 
                   <div className="mt-3 flex items-center justify-end gap-2">
-                    <button
-                      onClick={() => onEdit?.(index)}
-                      className="px-3 py-1.5 rounded-lg text-sky-600 hover:bg-sky-50 text-xs font-medium"
-                    >
+                    <button onClick={() => onEdit?.(index)} className="px-3 py-1.5 rounded-lg text-sky-600 hover:bg-sky-50 text-xs font-medium">
                       Edit
                     </button>
-                    <button
-                      onClick={() => onDelete?.(index)}
-                      className="px-3 py-1.5 rounded-lg text-rose-600 hover:bg-rose-50 text-xs font-medium"
-                    >
+                    <button onClick={() => onDelete?.(index)} className="px-3 py-1.5 rounded-lg text-rose-600 hover:bg-rose-50 text-xs font-medium">
                       Delete
                     </button>
                   </div>

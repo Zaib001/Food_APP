@@ -1,74 +1,122 @@
 // src/utils/exportRequisitions.js
 
-// No types in JS, just plain object usage
+/** Convert any value to a safe CSV cell */
 const toCell = (v) => {
-  if (v === null || v === undefined) return '';
+  if (v === null || v === undefined) return "";
+
+  // JSON-stringify plain objects/arrays to keep the CSV structure intact
+  if (typeof v === "object") {
+    try {
+      v = JSON.stringify(v);
+    } catch {
+      v = String(v);
+    }
+  }
+
   const s = String(v);
-  // escape " and wrap if needed
-  const needsWrap = /[",\n]/.test(s);
+
+  // Excel is happier without commas in date locales; keep ISO without commas
+  // (we don't inject commas anyway, so this is fine)
+
+  // Escape quotes and wrap if contains comma, quote, or newline
+  const needsWrap = /[",\n\r]/.test(s);
   const esc = s.replace(/"/g, '""');
   return needsWrap ? `"${esc}"` : esc;
 };
 
-export function exportRequisitionsToCSV(rows, filename) {
-  if (!Array.isArray(rows) || rows.length === 0) {
-    rows = [];
+/** Get a field either from the requisition header OR fallback to items[0] */
+const getField = (r, key) => {
+  if (r == null) return "";
+  if (r[key] !== undefined && r[key] !== null && r[key] !== "") return r[key];
+  const first = Array.isArray(r.items) && r.items.length ? r.items[0] : null;
+  if (first && first[key] !== undefined && first[key] !== null && first[key] !== "") {
+    return first[key];
   }
+  return "";
+};
 
-  // Define the columns you want in the CSV (order matters)
-  const headers = [
-    { key: 'date',        label: 'Date' },
-    { key: 'supplier',    label: 'Supplier' },
-    { key: 'item',        label: 'Item' },
-    { key: 'quantity',    label: 'Quantity' },
-    { key: 'unit',        label: 'Unit' },
-    { key: 'base',        label: 'Base' },
-    { key: 'requestedBy', label: 'Requested By' },
-    { key: 'status',      label: 'Status' },
-    { key: '_id',         label: 'Requisition ID' },
-    { key: 'plan',        label: 'Plan' },
-    { key: 'notes',       label: 'Notes' },
-    { key: 'createdAt',   label: 'Created At' },
-    { key: 'updatedAt',   label: 'Updated At' },
-  ];
+/** Normalize/format date/time safely for CSV */
+const fmtDate = (v) => {
+  if (!v) return "";
+  // If it's already YYYY-MM-DD or similar, keep it
+  if (typeof v === "string") return v;
+  try {
+    const d = new Date(v);
+    if (!isNaN(d.getTime())) return d.toISOString();
+  } catch {}
+  return String(v);
+};
 
-  // Sort by supplier => date
-  const sorted = [...rows].sort((a, b) => {
-    const s1 = (a.supplier || '').localeCompare(b.supplier || '');
-    if (s1 !== 0) return s1;
-    return (a.date || '').localeCompare(b.date || '');
+/** CSV headers (order matters) */
+const HEADERS = [
+  { key: "date",        label: "Date",        format: fmtDate },
+  { key: "supplier",    label: "Supplier" },
+  { key: "item",        label: "Item" },
+  { key: "quantity",    label: "Quantity" },
+  { key: "unit",        label: "Unit" },
+  { key: "base",        label: "Base" },
+  { key: "requestedBy", label: "Requested By" },
+  { key: "status",      label: "Status" },
+  { key: "_id",         label: "Requisition ID" },
+  { key: "plan",        label: "Plan" },
+  { key: "notes",       label: "Notes" },
+  { key: "createdAt",   label: "Created At",  format: fmtDate },
+  { key: "updatedAt",   label: "Updated At",  format: fmtDate },
+];
+
+/** Build a single CSV line from an object */
+const lineFromRow = (r) =>
+  HEADERS.map((h) => {
+    const raw = getField(r, h.key);
+    const val = h.format ? h.format(raw) : raw;
+    return toCell(val);
+  }).join(",");
+
+/** Export all requisitions to a single CSV download */
+export function exportRequisitionsToCSV(rows, filename) {
+  const list = Array.isArray(rows) ? rows.slice() : [];
+
+  // Sort by supplier then date (using fallbacks)
+  list.sort((a, b) => {
+    const sa = String(getField(a, "supplier") || "").localeCompare(String(getField(b, "supplier") || ""));
+    if (sa !== 0) return sa;
+    return String(getField(a, "date") || "").localeCompare(String(getField(b, "date") || ""));
   });
 
-  const headerLine = headers.map(h => toCell(h.label)).join(',');
-  const bodyLines = sorted.map(r =>
-    headers.map(h => toCell(r[h.key] ?? '')).join(',')
-  );
+  // Excel separator hint + UTF-8 BOM + CRLF line endings
+  const headerLine = HEADERS.map((h) => toCell(h.label)).join(",");
+  const bodyLines = list.map(lineFromRow);
 
-  // Add UTF-8 BOM for Excel compatibility
-  const csv = '\uFEFF' + [headerLine, ...bodyLines].join('\n');
+  // Important: CRLF so Excel splits rows correctly on Windows
+  const CRLF = "\r\n";
+  const csvBody = [headerLine, ...bodyLines].join(CRLF);
 
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  // Prepend "sep=," line so Excel knows the delimiter, then add BOM
+  const csv = "\uFEFF" + "sep=," + CRLF + csvBody + CRLF;
+
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
+  const a = document.createElement("a");
   a.href = url;
-  a.download = filename || `requisitions_${new Date().toISOString().slice(0,10)}.csv`;
+  a.download = filename || `requisitions_${new Date().toISOString().slice(0, 10)}.csv`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
 
-/**
- * Optional: export one CSV per supplier (multiple downloads)
- */
+/** Export one CSV per supplier (multiple downloads) */
 export function exportPerSupplierCSVs(rows) {
+  const list = Array.isArray(rows) ? rows : [];
   const bySupplier = {};
-  for (const r of rows) {
-    const key = r.supplier || 'Unknown';
+
+  for (const r of list) {
+    const key = getField(r, "supplier") || "Unknown";
     if (!bySupplier[key]) bySupplier[key] = [];
     bySupplier[key].push(r);
   }
-  Object.entries(bySupplier).forEach(([supplier, list]) =>
-    exportRequisitionsToCSV(list, `requisitions_${supplier}_${new Date().toISOString().slice(0,10)}.csv`)
+
+  Object.entries(bySupplier).forEach(([supplier, subset]) =>
+    exportRequisitionsToCSV(subset, `requisitions_${supplier}_${new Date().toISOString().slice(0, 10)}.csv`)
   );
 }

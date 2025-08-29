@@ -12,10 +12,12 @@ import { PlanningProvider } from './contexts/PlanningContext';
 import { Toaster } from 'react-hot-toast';
 import { InventoryProvider } from './contexts/InventoryContext';
 import { ProductionProvider } from './contexts/ProductionContext.jsx';
+import { BaseProvider } from "./contexts/BaseContext";
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <BrowserRouter>
+     <BaseProvider>
       <RequisitionProvider>
         <IngredientProvider>
           <RecipeProvider>
@@ -32,6 +34,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           </RecipeProvider>
         </IngredientProvider>
       </RequisitionProvider>
+      </BaseProvider>
     </BrowserRouter>
   </React.StrictMode>
 );
