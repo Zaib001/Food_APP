@@ -25,7 +25,6 @@ const Inventory = lazy(() => import('./pages/Inventory'));
 const Production = lazy(() => import('./pages/Production'));
 const Reports = lazy(() => import('./pages/Reports'));
 const Planning = lazy(() => import('./pages/Planning'));
-const SignUp = lazy(() => import('./components/SignUp'));
 const SignIn = lazy(() => import('./components/SignIn'));
 
 // Admin pages
@@ -39,7 +38,6 @@ function App() {
       <Routes>
         {/* Public */}
         <Route path="/" element={<Home />} />
-        <Route path="/signup" element={<SignUp />} />
         <Route path="/signin" element={<SignIn />} />
 
         {/* Authenticated area */}
