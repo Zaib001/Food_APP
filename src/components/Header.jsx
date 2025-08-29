@@ -109,8 +109,8 @@ export default function Header() {
               </a>
             </li>
             <li>
-              <Link to="/signup" className="hover:text-red-600">
-                {t('nav.signup') || 'Sign Up'}
+              <Link to="/signIn" className="hover:text-red-600">
+                {t('nav.signIn') || 'Sign Up'}
               </Link>
             </li>
           </ul>
