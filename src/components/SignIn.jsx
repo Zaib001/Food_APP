@@ -34,7 +34,6 @@ const SignIn = () => {
           <input name="password" type="password" placeholder="Password" onChange={handleChange} value={formData.password} required className="w-full p-2 border rounded" />
           <button type="submit" className="w-full bg-red-600 text-white p-2 rounded hover:bg-red-700">Log In</button>
         </form>
-      #  <p className="text-center text-sm mt-4">Don't have an account? <Link to="/signup" className="text-red-600 hover:underline">Sign Up</Link></p>
       </div>
     </div>
   );
