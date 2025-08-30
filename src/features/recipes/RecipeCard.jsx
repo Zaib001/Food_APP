@@ -10,13 +10,12 @@ import {
   FaTags,
   FaLock,
   FaUnlock,
-  FaEye,
-  FaFilePdf // Added PDF icon
+  FaFilePdf
 } from 'react-icons/fa';
 import { motion } from 'framer-motion';
 import axios from 'axios';
 import toast from 'react-hot-toast';
-import { exportSingleRecipeToPDF } from '../../components/exportRecipesToPDF'; // Import the new function
+import { exportSingleRecipeToPDF } from '../../components/exportRecipesToPDF';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://food-backend-qsbp.onrender.com/api';
 const headers = () => ({ Authorization: `Bearer ${localStorage.getItem('token')}` });
@@ -31,10 +30,9 @@ export default function RecipeCard({
   onView,         // () => void
   onRefresh       // optional: reload list after lock/unlock
 }) {
-  const [clientCount, setClientCount] = useState(recipe.portions || 10);
+  const [clientCount, setClientCount] = useState(recipe?.portions || 10);
   const [exporting, setExporting] = useState(false);
 
-  // role from localStorage (server still enforces)
   const currentUser = useMemo(() => {
     try { return JSON.parse(localStorage.getItem('user') || '{}'); } catch { return {}; }
   }, []);
@@ -43,7 +41,9 @@ export default function RecipeCard({
   const getIngredientName = (id) => ingredientsMap[id]?.name || 'Unknown';
   const getUnit = (id) => ingredientsMap[id]?.originalUnit || '';
 
-  const totalCost = recipe.ingredients.reduce((sum, item) => {
+  const ingredientsArr = Array.isArray(recipe?.ingredients) ? recipe.ingredients : [];
+
+  const totalCost = ingredientsArr.reduce((sum, item) => {
     const ing = ingredientsMap[item.ingredientId];
     if (!ing) return sum;
     const yieldPercent = parseFloat(ing.yield) || 100;
@@ -51,19 +51,19 @@ export default function RecipeCard({
     return sum + adjustedQty * (parseFloat(ing.pricePerKg) || 0);
   }, 0);
 
-  const totalKcal = recipe.ingredients.reduce((sum, item) => {
+  const totalKcal = ingredientsArr.reduce((sum, item) => {
     const ing = ingredientsMap[item.ingredientId];
     return sum + (((parseFloat(item.quantity) || 0) * (parseFloat(ing?.kcal) || 0)) / 1000);
   }, 0);
 
-  const costPerPortion = recipe.portions ? totalCost / recipe.portions : 0;
-  const kcalPerPortion = recipe.portions ? totalKcal / recipe.portions : 0;
+  const costPerPortion = recipe?.portions ? totalCost / recipe.portions : 0;
+  const kcalPerPortion = recipe?.portions ? totalKcal / recipe.portions : 0;
 
   const handleToggleLock = async () => {
     try {
       const target = !recipe.isLocked;
       await axios.put(
-        `${API_BASE}/recipes/${recipe._id}`,
+        `${API_BASE}/recipes/${recipe._id || recipe.id}`,
         { isLocked: target },
         { headers: headers() }
       );
@@ -89,7 +89,6 @@ export default function RecipeCard({
     }
   };
 
-  // Animations
   const cardVariants = {
     hidden: { opacity: 0, y: 18 },
     visible: { opacity: 1, y: 0, transition: { duration: 0.28 } },
@@ -106,14 +105,14 @@ export default function RecipeCard({
       animate="visible"
       whileHover="hover"
       className={`group overflow-hidden rounded-2xl border shadow-sm bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/70 ${
-        recipe.isLocked ? 'border-blue-200' : 'border-gray-100'
+        recipe?.isLocked ? 'border-blue-200' : 'border-gray-100'
       }`}
     >
       {/* Hero / Image */}
       <div className="relative h-44 w-full overflow-hidden">
         <img
-          src={`${import.meta.env.VITE_API_IMG_URL || ''}${recipe.imageUrl || ''}`}
-          alt={recipe.name}
+          src={`${import.meta.env.VITE_API_IMG_URL || ''}${recipe?.imageUrl || ''}`}
+          alt={recipe?.name || 'Recipe'}
           className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
           onError={(e) => { e.currentTarget.style.display = 'none'; }}
         />
@@ -124,27 +123,25 @@ export default function RecipeCard({
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center gap-2 text-white text-base font-semibold drop-shadow">
               <FaClipboardList className="text-red-400" />
-              {recipe.name}
+              {recipe?.name || 'Untitled Recipe'}
             </span>
-           
           </div>
 
-          <div className="flex items-center">  
-           {recipe.isLocked && (
+          <div className="flex items-center">
+            {recipe?.isLocked && (
               <span className="text-[10px] uppercase tracking-wide bg-blue-600/90 text-white px-2 py-1 rounded-full inline-flex items-center gap-1">
                 <FaLock size={10} /> Locked
               </span>
-            )}         
-            {/* Lock/Unlock (admin only) */}
+            )}
             {isAdmin && (
               <button
                 onClick={handleToggleLock}
-                title={recipe.isLocked ? 'Unlock (admin)' : 'Lock (admin)'}
-                className={`rounded-full border px-2.5 py-1 text-white/90 hover:text-white backdrop-blur-md ${
-                  recipe.isLocked ? 'bg-blue-500/30 border-white/30' : 'bg-gray-500/30 border-white/30'
+                title={recipe?.isLocked ? 'Unlock (admin)' : 'Lock (admin)'}
+                className={`ml-2 rounded-full border px-2.5 py-1 text-white/90 hover:text-white backdrop-blur-md ${
+                  recipe?.isLocked ? 'bg-blue-500/30 border-white/30' : 'bg-gray-500/30 border-white/30'
                 }`}
               >
-                {recipe.isLocked ? <FaUnlock /> : <FaLock />}
+                {recipe?.isLocked ? <FaUnlock /> : <FaLock />}
               </button>
             )}
           </div>
@@ -156,13 +153,13 @@ export default function RecipeCard({
         {/* Meta chips */}
         <div className="flex flex-wrap items-center gap-2 mb-3">
           <span className="inline-flex items-center gap-1.5 text-xs px-2 py-1 rounded-full bg-purple-50 text-purple-700 border border-purple-100">
-            <FaTags className="text-purple-500" /> {recipe.type}
+            <FaTags className="text-purple-500" /> {recipe?.type || '—'}
           </span>
           <span className="inline-flex items-center gap-1.5 text-xs px-2 py-1 rounded-full bg-yellow-50 text-yellow-700 border border-yellow-100">
-            <FaBalanceScale className="text-yellow-600" /> Portions: {recipe.portions}
+            <FaBalanceScale className="text-yellow-600" /> Portions: {recipe?.portions ?? 0}
           </span>
           <span className="inline-flex items-center gap-1.5 text-xs px-2 py-1 rounded-full bg-gray-50 text-gray-700 border border-gray-200">
-            <FaBalanceScale className="text-gray-600" /> Weight: {Number(recipe.yieldWeight || 0).toFixed(2)} g
+            <FaBalanceScale className="text-gray-600" /> Weight: {Number(recipe?.yieldWeight || 0).toFixed(2)} g
           </span>
         </div>
 
@@ -189,7 +186,7 @@ export default function RecipeCard({
         <div className="rounded-xl border p-3 mb-4">
           <div className="text-sm font-medium text-gray-700 mb-2">Ingredients</div>
           <ul className="text-sm text-gray-700 space-y-1.5 max-h-40 overflow-y-auto pr-1">
-            {recipe.ingredients.map((item, idx) => (
+            {ingredientsArr.map((item, idx) => (
               <li
                 key={idx}
                 className="flex items-center justify-between gap-2 border-b last:border-b-0 pb-1.5"
@@ -227,12 +224,12 @@ export default function RecipeCard({
           <button
             onClick={() => onApplyScale?.(clientCount)}
             className={`px-3 py-2 rounded-lg text-white text-sm ${
-              recipe.isLocked && !isAdmin
+              recipe?.isLocked && !isAdmin
                 ? 'bg-gray-300 cursor-not-allowed'
                 : 'bg-red-600 hover:bg-red-700'
             }`}
             title="Apply scale & save"
-            disabled={recipe.isLocked && !isAdmin}
+            disabled={recipe?.isLocked && !isAdmin}
           >
             Apply & Save
           </button>
@@ -241,7 +238,7 @@ export default function RecipeCard({
         {/* Bottom Command Bar */}
         <div className="mt-4 flex items-center justify-between border-t pt-3">
           <div className="text-[12px] text-gray-500">
-            Base portions: <span className="font-medium">{recipe.basePortions || recipe.portions}</span>
+            Base portions: <span className="font-medium">{recipe?.basePortions ?? recipe?.portions ?? 0}</span>
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -259,13 +256,13 @@ export default function RecipeCard({
 
             <button
               onClick={onEdit}
-              disabled={recipe.isLocked && !isAdmin}
+              disabled={recipe?.isLocked && !isAdmin}
               className={`${headerActionClass} ${
-                recipe.isLocked && !isAdmin
+                recipe?.isLocked && !isAdmin
                   ? 'text-gray-300 border-gray-200 cursor-not-allowed'
                   : 'text-blue-700 border-blue-200 hover:bg-blue-50'
               }`}
-              title={recipe.isLocked && !isAdmin ? 'Recipe is locked' : 'Edit'}
+              title={recipe?.isLocked && !isAdmin ? 'Recipe is locked' : 'Edit'}
             >
               <FaEdit /> Edit
             </button>
