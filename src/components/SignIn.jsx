@@ -10,16 +10,20 @@ const SignIn = () => {
   const handleChange = e => setFormData({ ...formData, [e.target.name]: e.target.value });
 
   const handleSubmit = async e => {
-    e.preventDefault();
-    try {
-      const res = await loginUser(formData);
-      localStorage.setItem('token', res.data.token);
-      toast.success('Login successful');
-      navigate('/dashboard');
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Login failed');
-    }
-  };
+  e.preventDefault();
+  try {
+    const res = await loginUser(formData);
+    console.log(res.data);
+
+    localStorage.setItem('token', res.data.token);
+    localStorage.setItem('user', JSON.stringify(res.data.user));
+
+    toast.success('Login successful');
+    navigate('/dashboard');
+  } catch (err) {
+    toast.error(err.response?.data?.message || 'Login failed');
+  }
+};
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4">

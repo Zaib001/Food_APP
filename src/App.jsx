@@ -13,6 +13,7 @@ import Planning from './pages/Planning';
 import SignUp from './components/SignUp';
 import SignIn from './components/SignIn';
 import PrivateRoute from './components/PrivateRoute'; 
+import AdminUsers from './pages/AdminUsers';
 
 function App() {
   return (
@@ -21,19 +22,22 @@ function App() {
       <Route path="/signup" element={<SignUp />} />
       <Route path="/signin" element={<SignIn />} />
 
-      <Route path="/dashboard" element={<PrivateRoute />}>
-        <Route element={<DashboardLayout />}>
-          <Route index element={<Dashboard />} />
-          <Route path="ingredients" element={<Ingredients />} />
-          <Route path="menus" element={<Menus />} />
-          <Route path="inventory" element={<Inventory />} />
-          <Route path="planning" element={<Planning />} />
-          <Route path="recipes" element={<Recipes />} />
-          <Route path="requisitions" element={<Requisitions />} />
-          <Route path="production" element={<Production />} />
-          <Route path="reports" element={<Reports />} />
-        </Route>
-      </Route>
+     <Route path="/dashboard" element={<PrivateRoute />}>
+  <Route element={<DashboardLayout />}>
+    <Route index element={<Dashboard />} />
+    <Route path="ingredients" element={<Ingredients />} />
+    <Route path="menus" element={<Menus />} />
+    <Route path="inventory" element={<Inventory />} />
+    <Route path="planning" element={<Planning />} />
+    <Route path="recipes" element={<Recipes />} />
+    <Route path="requisitions" element={<Requisitions />} />
+    <Route path="production" element={<Production />} />
+    <Route path="reports" element={<Reports />} />
+    
+    {/* Admin-specific */}
+    <Route path="users" element={<AdminUsers />} />
+  </Route>
+</Route>
     </Routes>
   );
 }
